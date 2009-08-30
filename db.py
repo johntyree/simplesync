@@ -28,26 +28,26 @@ class musicDB:
                 statinfo = os.stat(abspath)
                 f = tagpy.FileRef(abspath)
                 print f.tag().album
-                cursor.execute('SELECT id FROM artist WHERE name = "%s"' % (f.tag().artist,))
+                cursor.execute('SELECT id FROM artist WHERE name = ?', (f.tag().artist,))
                 try:
                     artist_id = cursor.fetchall()[0][0]
                 except (IndexError):
                     cursor.execute('INSERT INTO artist VALUES (null, ?)', (f.tag().artist,))
-                    cursor.execute('SELECT id FROM artist WHERE name = "%s"' % (f.tag().artist,))
+                    cursor.execute('SELECT id FROM artist WHERE name = ?', (f.tag().artist,))
                     artist_id = cursor.fetchall()[0][0]
-                cursor.execute('SELECT id FROM genre WHERE name = "%s"' % (f.tag().genre,))
+                cursor.execute('SELECT id FROM genre WHERE name = ?', (f.tag().genre,))
                 try:
                     genre_id = cursor.fetchall()[0][0]
                 except (IndexError):
                     cursor.execute('INSERT INTO genre VALUES (null, ?)', (f.tag().genre,))
-                    cursor.execute('SELECT id FROM genre WHERE name = "%s"' % (f.tag().genre,))
+                    cursor.execute('SELECT id FROM genre WHERE name = ?', (f.tag().genre,))
                     genre_id = cursor.fetchall()[0][0]
-                cursor.execute('SELECT id FROM album WHERE name = "%s"' % (f.tag().album,))
+                cursor.execute('SELECT id FROM album WHERE name = ?', (f.tag().album,))
                 try:
                     album_id = cursor.fetchall()[0][0]
                 except (IndexError):
                     cursor.execute('INSERT INTO album VALUES (null, ?)', (f.tag().album,))
-                    cursor.execute('SELECT id FROM album WHERE name = "%s"' % (f.tag().album,))
+                    cursor.execute('SELECT id FROM album WHERE name = ?', (f.tag().album,))
                     album_id = cursor.fetchall()[0][0]
                 cursor.execute('INSERT INTO file VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', (relpath, statinfo.st_mtime, statinfo.st_size, f.tag().title, artist_id, album_id, genre_id, f.tag().year, True))
         self.connection.commit()
