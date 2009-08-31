@@ -1,11 +1,34 @@
 #!/usr/bin/env python
+#
+#       db.py
+#       
+#       Copyright 2009 John Tyree <johntyree@gmail.com>
+#       
+#       This program is free software; you can redistribute it and/or modify
+#       it under the terms of the GNU General Public License as published by
+#       the Free Software Foundation; either version 3 of the License, or
+#       (at your option) any later version.
+#       
+#       This program is distributed in the hope that it will be useful,
+#       but WITHOUT ANY WARRANTY; without even the implied warranty of
+#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#       GNU General Public License for more details.
+#       
+#       You should have received a copy of the GNU General Public License
+#       along with this program; if not, write to the Free Software
+#       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#       MA 02110-1301, USA.
+
+
 from pysqlite2 import dbapi2 as sqlite
-import time, sys, os, tagpy, subprocess
+import os, tagpy
 
 
 class musicDB:
+    '''A database of file information and tag attributes'''
+
     def __init__ (self, dbfile):
-        '''A database of file information and tag attributes'''
+        '''Initialize a musicDB object connected to <dbfile>'''
         self.connection = sqlite.connect(dbfile)
         self.cursor = self.connection.cursor()
         for table in "file", "album", "artist", "genre":
@@ -29,14 +52,17 @@ class musicDB:
                 self.updateFile(rootdir, abspath)
 
     def removeFile(self, rootdir, abspath):
+        '''Remove a file from the database'''
         relpath = unicode(os.path.relpath(abspath, rootdir), 'latin-1')
         self.cursor.execute('DELETE FROM file WHERE relpath = ?', (relpath,)) 
 
     def updateFile(self, rootdir, abspath):
+        '''Update a file in the database'''
         self.removeFile(rootdir, abspath)
         self.addFile(rootdir, abspath)
 
     def addFile(self, rootdir, abspath):
+        '''Add a file to the database'''
         statinfo = os.stat(abspath)
         f = tagpy.FileRef(abspath)
         cursor = self.cursor
@@ -65,14 +91,15 @@ class musicDB:
         cursor.execute('INSERT INTO file VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', (relpath, statinfo.st_mtime, statinfo.st_size, f.tag().title, artist_id, album_id, genre_id, f.tag().year, True))
         self.connection.commit()
 
-
     def isNewer(self, rootdir, relpath):
+        '''Return True if file has been modified.'''
         self.cursor.execute('SELECT mtime FROM file WHERE relpath = ?', (relpath,))
         dbTime = self.cursor.fetchall()[0][0]
         fileTime = os.stat(os.path.join(rootdir, relpath)).st_mtime
         return fileTime > dbTime
 
     def syncList(self):
+        '''Return a list of relative paths of all files marked for sync'''
         self.cursor.execute('SELECT relpath FROM file WHERE sync = 1')
         tupleList = self.cursor.fetchall()
         syncList = []
