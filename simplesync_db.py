@@ -98,6 +98,11 @@ class musicDB:
         fileTime = os.stat(os.path.join(rootdir, relpath)).st_mtime
         return fileTime > dbTime
 
+    def filterList(self, str):
+        '''Return list of tuples matching filter'''
+        list = filter(lambda x: str in x, self.allList())
+        return list
+
     def allList(self):
         '''Return a list of dictionaries of metadata from each track'''
         self.cursor.execute('SELECT * FROM file')
@@ -117,7 +122,7 @@ class musicDB:
     def trackList(self):
         '''Return a list of relative paths of all files in db'''
         self.cursor.execute('SELECT relpath FROM file')
-        tupleList = self.cursor.fetchtrack()
+        tupleList = self.cursor.fetchall()
         trackList = []
         for t in tupleList:
             trackList.append(t[0])
