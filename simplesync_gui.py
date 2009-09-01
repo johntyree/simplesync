@@ -19,7 +19,7 @@
 #       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #       MA 02110-1301, USA.
 
-import pygtk, gtk
+import gtk
 
 class dbView:
     '''Main gui window for viewing simplesync musicDB'''
@@ -31,7 +31,7 @@ class dbView:
 
         ## Keyboard Accelerators
         self.AccelGroup = gtk.AccelGroup()
-        self.AccelGroup.connect_group(ord('N'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_LOCKED, lambda w, x, y, z: gtk.main_quit())
+        self.AccelGroup.connect_group(ord('Q'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_LOCKED, lambda w, x, y, z: gtk.main_quit())
 
         # Track view
         self.tree = gtk.TreeView()
@@ -40,12 +40,18 @@ class dbView:
         self.albumCol = gtk.TreeViewColumn("Album")
         self.yearCol = gtk.TreeViewColumn("Year")
         self.genreCol = gtk.TreeViewColumn("Genre")
-        for col in (self.titleCol, self.artistCol, self.albumCol, self.yearCol, self.genreCol):
+        self.syncCol = gtk.TreeViewColumn("Sync")
+        for i, col in enumerate((self.titleCol, self.artistCol, self.albumCol, self.genreCol, self.yearCol)):
             col_cell_text = gtk.CellRendererText()
             col.pack_start(col_cell_text, True)
-            col.add_attribute(col_cell_text, "text", 0)
+            col.add_attribute(col_cell_text, "text", i)
+            col.set_resizable(True)
+            col.set_clickable(True)
+            col.set_reorderable(True)
+            col.connect('clicked', lambda w: self.sortByColumn(w))
             self.tree.append_column(col)
-        
+        self.tree.append_column(self.syncCol)
+
         # Track list
         self.listStore = gtk.ListStore(str, str, str, str, int)
 
@@ -57,9 +63,9 @@ class dbView:
         # Search bar
         self.searchBar = gtk.Entry()
         self.searchBar.connect('activate', self.search_callback)
-        self.searchBar.select_region(0, len(self.searchBar.get_text()))
         self.tooltips.set_tip(self.searchBar, "Enter query")
         self.searchBar.set_text("Enter query")
+        self.searchBar.select_region(0, len(self.searchBar.get_text()))
 
         #Window layout
         self.vbox1 = gtk.VBox(False, 0)
@@ -70,13 +76,18 @@ class dbView:
         self.dbwindow = gtk.Window(gtk.WINDOW_TOPLEVEL)
         self.dbwindow.set_title("simplesync")
         self.dbwindow.set_size_request(900, 150)
-        #self.dbwindow.connect("delete_event", lambda w, e: gtk.main_quit())
         self.dbwindow.connect("destroy", lambda w: gtk.main_quit())
+        self.dbwindow.add_accel_group(self.AccelGroup)
         self.dbwindow.add(self.vbox1)
+        self.searchBar.grab_focus()
         self.dbwindow.show_all()
 
     def search_callback(self, widget):
+        print "Search for '%s'." % widget.get_text()
         return 0
+
+    def sortByColumn(self, column):
+        print "Sort by %s." % column.get_title()
 
 def main():
     dbView()

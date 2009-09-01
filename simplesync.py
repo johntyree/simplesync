@@ -29,7 +29,6 @@ def main():
         window.listStore.append((track['title'], track['artist'], track['album'], track['genre'], track['year'],))
     window.tree.set_model(window.listStore)
 
-
     simplesync_gui.gtk.main()
     return 0
 
