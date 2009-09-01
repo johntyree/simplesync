@@ -35,12 +35,21 @@ class dbView:
 
         # Track view
         self.tree = gtk.TreeView()
-        self.col = gtk.TreeViewColumn("Track")
-        col_cell_text = gtk.CellRendererText()
-        self.col.pack_start(col_cell_text, True)
-        self.col.add_attribute(col_cell_text, "text", 0)
-        self.tree.append_column(self.col)
+        self.titleCol = gtk.TreeViewColumn("Title")
+        self.artistCol = gtk.TreeViewColumn("Artist")
+        self.albumCol = gtk.TreeViewColumn("Album")
+        self.yearCol = gtk.TreeViewColumn("Year")
+        self.genreCol = gtk.TreeViewColumn("Genre")
+        for col in (self.titleCol, self.artistCol, self.albumCol, self.yearCol, self.genreCol):
+            col_cell_text = gtk.CellRendererText()
+            col.pack_start(col_cell_text, True)
+            col.add_attribute(col_cell_text, "text", 0)
+            self.tree.append_column(col)
         
+        # Track list
+        self.listStore = gtk.ListStore(str, str, str, str, int)
+
+        # Track window
         self.scroll = gtk.ScrolledWindow()
         self.scroll.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
         self.scroll.add(self.tree)
@@ -55,12 +64,12 @@ class dbView:
         #Window layout
         self.vbox1 = gtk.VBox(False, 0)
         self.vbox1.pack_start(self.scroll, True, True, 1)
-        self.vbox1.pack_start(self.searchBar, True, True, 1)
-
+        self.vbox1.pack_start(self.searchBar, False, False, 1)
 
         #Initialize
         self.dbwindow = gtk.Window(gtk.WINDOW_TOPLEVEL)
         self.dbwindow.set_title("simplesync")
+        self.dbwindow.set_size_request(900, 150)
         #self.dbwindow.connect("delete_event", lambda w, e: gtk.main_quit())
         self.dbwindow.connect("destroy", lambda w: gtk.main_quit())
         self.dbwindow.add(self.vbox1)

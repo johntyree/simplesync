@@ -19,12 +19,18 @@
 #       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #       MA 02110-1301, USA.
 
-import musicDB, gui
+import simplesync_db, simplesync_gui
 
 def main():
-    db = musicDB.musicDB(':memory:')
+    db = simplesync_db.musicDB(':memory:')
     db.addDir("/media/disk/Music/0-9")
-    dbView()
+    window = simplesync_gui.dbView()
+    for track in db.allList():
+        window.listStore.append((track['title'], track['artist'], track['album'], track['genre'], track['year'],))
+    window.tree.set_model(window.listStore)
+
+
+    simplesync_gui.gtk.main()
     return 0
 
 if __name__ == '__main__': main()

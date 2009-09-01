@@ -98,6 +98,31 @@ class musicDB:
         fileTime = os.stat(os.path.join(rootdir, relpath)).st_mtime
         return fileTime > dbTime
 
+    def allList(self):
+        '''Return a list of dictionaries of metadata from each track'''
+        self.cursor.execute('SELECT * FROM file')
+        rows = self.cursor.fetchall()
+        allList = []
+        for (relpath, mtime, size, title, artist_id, album_id, genre_id, year, sync) in rows:
+            self.cursor.execute('SELECT name FROM genre where id = ?', (genre_id,))
+            genre = self.cursor.fetchall()[0][0]
+            self.cursor.execute('SELECT name FROM artist where id = ?', (artist_id,))
+            artist = self.cursor.fetchall()[0][0]
+            self.cursor.execute('SELECT name FROM album where id = ?', (album_id,))
+            album = self.cursor.fetchall()[0][0]
+            allList.append({"relpath" : relpath, "mtime" : mtime, "size" : size, "title" : title, "artist" : artist, "album" : album, "genre" : genre, "year" : year, "sync" : sync}) 
+        return allList
+
+
+    def trackList(self):
+        '''Return a list of relative paths of all files in db'''
+        self.cursor.execute('SELECT relpath FROM file')
+        tupleList = self.cursor.fetchtrack()
+        trackList = []
+        for t in tupleList:
+            trackList.append(t[0])
+        return trackList
+
     def syncList(self):
         '''Return a list of relative paths of all files marked for sync'''
         self.cursor.execute('SELECT relpath FROM file WHERE sync = 1')
