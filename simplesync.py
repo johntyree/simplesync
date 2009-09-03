@@ -51,7 +51,7 @@ class dbView:
             col.set_resizable(True)
             col.set_clickable(True)
             col.set_reorderable(True)
-            col.connect('clicked', lambda w: self.sortByColumn(w))
+            col.connect('clicked', lambda w: self.column_callback(w))
         for i, col in enumerate((self.titleCol, self.artistCol, self.albumCol, self.genreCol, self.yearCol)):
             self.tree.append_column(col)
         self.titleCol.set_expand(True)
@@ -93,17 +93,22 @@ class dbView:
         self.dbwindow.show_all()
 
     def search_callback(self, entry):
+        '''Limit results to those containing 'entry'.'''
         print "Search for '%s'." % entry.get_text()
         return 0
 
     def toggle_callback(self, cell, toggle, db):
-        #db.cursor.execute("UPDATE file SET sync = ?", (self.listStore[toggle][-1],))
+        '''Toggle sync status of file in db.'''
         self.listStore[toggle][6] = not self.listStore[toggle][6]
         print "Toggled %s to %s" % (self.listStore[toggle][0], self.listStore[toggle][6])
+        db.cursor.execute("UPDATE file SET sync = ? WHERE relpath = ?", (self.listStore[toggle][6], self.listStore[toggle][0]))
+        print db.syncList()
         return
 
     def column_callback(self, column):
+        '''Sort currently viewed tracks by column.'''
         print "Sort by %s." % column.get_title()
+        self.listStore.sort()
         return
 
 def main():
