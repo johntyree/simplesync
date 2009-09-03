@@ -19,12 +19,15 @@
 #       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #       MA 02110-1301, USA.
 
-import gtk
+import gtk, simplesync_db
 
 class dbView:
     '''Main window for viewing simplesync musicDB'''
 
-    def __init__(self):
+    def __init__(self, db):
+        # Initialize model
+        self.db = db
+        self.testBool = True
 
         ## Generate tooltips
         self.tooltips = gtk.Tooltips()
@@ -44,19 +47,23 @@ class dbView:
         col_cell_text = gtk.CellRendererText()
         for i, col in enumerate((self.titleCol, self.artistCol, self.albumCol, self.genreCol, self.yearCol)):
             col.pack_start(col_cell_text, True)
-            col.add_attribute(col_cell_text, "text", i)
+            col.add_attribute(col_cell_text, "text", i+1)
             col.set_resizable(True)
             col.set_clickable(True)
             col.set_reorderable(True)
             col.connect('clicked', lambda w: self.sortByColumn(w))
+        for i, col in enumerate((self.titleCol, self.artistCol, self.albumCol, self.genreCol, self.yearCol)):
             self.tree.append_column(col)
+        self.titleCol.set_expand(True)
         col_cell_toggle = gtk.CellRendererToggle()
-        col_cell_toggle.set_property('activatable', True)
         self.syncCol.pack_start(col_cell_toggle)
+        self.syncCol.add_attribute( col_cell_toggle, "active", 6)
+        col_cell_toggle.set_property('activatable', True)
+        col_cell_toggle.connect('toggled', self.toggle_callback, db)
         self.tree.append_column(self.syncCol)
 
         # Track list
-        self.listStore = gtk.ListStore(str, str, str, str, int, bool)
+        self.listStore = gtk.ListStore(str, str, str, str, str, int, bool)
 
         # Track window
         self.scroll = gtk.ScrolledWindow()
@@ -87,21 +94,26 @@ class dbView:
 
     def search_callback(self, entry):
         print "Search for '%s'." % entry.get_text()
-        
-
         return 0
 
-    def sortByColumn(self, column):
+    def toggle_callback(self, cell, toggle, db):
+        #db.cursor.execute("UPDATE file SET sync = ?", (self.listStore[toggle][-1],))
+        self.listStore[toggle][6] = not self.listStore[toggle][6]
+        print "Toggled %s to %s" % (self.listStore[toggle][0], self.listStore[toggle][6])
+        return
+
+    def column_callback(self, column):
         print "Sort by %s." % column.get_title()
+        return
 
 def main():
     db = simplesync_db.musicDB(':memory:')
     db.addDir("/media/disk/Music/0-9")
-    window = simplesync_gui.dbView()
+    window = dbView(db)
     for track in db.allList():
-        window.listStore.append((track['title'], track['artist'], track['album'], track['genre'], track['year'], track['sync']))
+        window.listStore.append([track['relpath'], track['title'], track['artist'], track['album'], track['genre'], track['year'], track['sync']])
     window.tree.set_model(window.listStore)
-    simplesync_gui.gtk.main()
+    gtk.main()
     return 0
 
 if __name__ == '__main__': main()
