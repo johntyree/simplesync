@@ -137,6 +137,10 @@ class musicDB:
             syncList.append(t[0])
         return syncList
 
+    def setSync(self, relpath, sync):
+        self.cursor.execute("UPDATE file SET sync = ? WHERE relpath = ?", (sync, relpath))
+        return
+
 def main():
     #subprocess.call(["rm","/tmp/test.db"])
     #connection = sqlite.connect('/tmp/test.db')
