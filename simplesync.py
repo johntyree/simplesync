@@ -51,8 +51,8 @@ class dbView:
             col.set_resizable(True)
             col.set_clickable(True)
             col.set_reorderable(True)
-            col.connect('clicked', lambda w: self.column_callback(w))
-        for i, col in enumerate((self.titleCol, self.artistCol, self.albumCol, self.genreCol, self.yearCol)):
+            col.set_sort_column_id(i+1)
+            #            col.connect('clicked', lambda w: self.column_callback(w))
             self.tree.append_column(col)
         self.titleCol.set_expand(True)
         col_cell_toggle = gtk.CellRendererToggle()
@@ -72,10 +72,10 @@ class dbView:
 
         # Search bar
         self.searchBar = gtk.Entry()
-        self.searchBar.connect('activate', self.search_callback)
+        self.searchBar.connect('activate', self.searchBar_callback)
         self.tooltips.set_tip(self.searchBar, "Enter query")
         self.searchBar.set_text("Enter query")
-        self.searchBar.select_region(0, len(self.searchBar.get_text()))
+        self.searchBar.select_region(0, -1)
 
         #Window layout
         self.vbox1 = gtk.VBox(False, 0)
@@ -85,31 +85,40 @@ class dbView:
         #Initialize
         self.dbwindow = gtk.Window(gtk.WINDOW_TOPLEVEL)
         self.dbwindow.set_title("simplesync")
-        self.dbwindow.set_size_request(900, 150)
+        self.dbwindow.set_default_size(1000, 400)
         self.dbwindow.connect("destroy", lambda w: gtk.main_quit())
         self.dbwindow.add_accel_group(self.AccelGroup)
         self.dbwindow.add(self.vbox1)
         self.searchBar.grab_focus()
         self.dbwindow.show_all()
 
-    def search_callback(self, entry):
-        '''Limit results to those containing 'entry'.'''
-        print "Search for '%s'." % entry.get_text()
+    def searchBar_callback(self, searchBar):
+        '''Limit results to those containing 'searchBar'.'''
+        print "Search for '%s'." % searchBar.get_text()
+        listStoreFilter = self.listStore.filter_new()
+        listStoreFilter.set_visible_func(self.filterFunc, searchBar)
+        self.tree.set_model(listStoreFilter)
+        searchBar.select_region(0, -1)
         return 0
+
+    def filterFunc(self, model, row, entry):
+        for text in model.get(row, 1, 2, 3, 4,):
+            if entry.get_text().lower() in text.lower():
+                return True
 
     def toggle_callback(self, cell, toggle, db):
         '''Toggle sync status of file in db.'''
         self.listStore[toggle][6] = not self.listStore[toggle][6]
         print "Toggled %s to %s" % (self.listStore[toggle][0], self.listStore[toggle][6])
         db.cursor.execute("UPDATE file SET sync = ? WHERE relpath = ?", (self.listStore[toggle][6], self.listStore[toggle][0]))
-        print db.syncList()
         return
 
     def column_callback(self, column):
         '''Sort currently viewed tracks by column.'''
+        print column.get_sort_column_id()
         print "Sort by %s." % column.get_title()
-        self.listStore.sort()
         return
+    
 
 def main():
     db = simplesync_db.musicDB(':memory:')
