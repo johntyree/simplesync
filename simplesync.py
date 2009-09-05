@@ -27,7 +27,7 @@ class dbView:
     def __init__(self, db):
         # Initialize model
         self.db = db
-        self.filtered = False
+        self.allToggle = True
 
         ## Generate tooltips
         self.tooltips = gtk.Tooltips()
@@ -116,12 +116,16 @@ class dbView:
         self.tree.set_model(self.filterModel)
 
     def toggleAllButton_callback(self, button):
-        for row in self.listStore:
-            #row[6] = not row[6]
-            print row[6]
-        return 0
+        '''Toggle sync status of all visible files'''
+        for i, row in enumerate(self.filterModel):
+            self.toggle_callback(None, i)
+        return
 
     def syncAllButton_callback(self, button):
+        '''Set or unset sync status of all visible files'''
+        for i, row in enumerate(self.filterModel):
+            self.toggle_callback(None, i)
+
         return
 
     def searchBar_callback(self, searchBar):
@@ -151,7 +155,7 @@ class dbView:
         print "Sort by %s." % column.get_title()
         return
     
-def sync(rootDir, db):
+def copyNewer(rootDir, db):
     syncList = []
     for root, dirs, files in simplesync_db.os.walk(rootDir):
         for name in files:
@@ -164,7 +168,6 @@ def sync(rootDir, db):
             if db.isNewer(rootDir, relpath):
                 syncList.append(relpath)
     print syncList
-            
 
 def openDB(dbfile):
     return simplesync_db.musicDB(dbfile)
@@ -174,7 +177,7 @@ def main():
     #db.rebuild()
     #db.addDir("/media/disk/Music/0-9")
     window = dbView(db)
-    sync('/media/disk/Music/0-9', db)
+    copyNewer('/media/disk/Music/0-9', db)
     gtk.main()
     return 0
 
