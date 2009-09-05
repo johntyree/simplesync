@@ -31,7 +31,9 @@ class musicDB:
         '''Initialize a musicDB object connected to <dbfile>'''
         self.connection = sqlite.connect(dbfile)
         self.cursor = self.connection.cursor()
-        for table in "file", "album", "artist", "genre":
+
+    def rebuild(self):
+        for table in "file", "album", "artist", "genre", "metadata":
             self.cursor.execute('DROP TABLE IF EXISTS %s' % (table,))
         self.cursor.execute('CREATE TABLE file (relpath VARCHAR(255) PRIMARY KEY, mtime DECIMAL(12), size INTEGER(12), title VARCHAR(255), artist_id INTEGER, album_id INTEGER, genre_id INTEGER, year INTEGER, sync BOOLEAN)')
         for table in "album", "artist", "genre":
@@ -41,15 +43,15 @@ class musicDB:
         self.cursor.execute('INSERT INTO metadata VALUES (?, ?)', ("simplesync_version", 0.0))
         self.connection.commit()
 
-    def addDir(self, rootdir):
+    def addDir(self, rootDir):
         '''Recursively import a directory into the database'''
-        for root, dirs, files in os.walk(rootdir):
-            print root
+        for root, dirs, files in os.walk(rootDir):
+            #print root, dirs, files
             for name in files:
                 if not '.mp3' in name[-4:]:
                     continue
                 abspath = os.path.join(root, name)
-                self.updateFile(rootdir, abspath)
+                self.updateFile(rootDir, abspath)
 
     def removeFile(self, rootdir, abspath):
         '''Remove a file from the database'''
@@ -94,9 +96,12 @@ class musicDB:
     def isNewer(self, rootdir, relpath):
         '''Return True if file has been modified.'''
         self.cursor.execute('SELECT mtime FROM file WHERE relpath = ?', (relpath,))
-        dbTime = self.cursor.fetchall()[0][0]
-        fileTime = os.stat(os.path.join(rootdir, relpath)).st_mtime
-        return fileTime > dbTime
+        try:
+            dbTime = self.cursor.fetchall()[0][0]
+            fileTime = os.stat(os.path.join(rootdir, relpath)).st_mtime
+            return fileTime > dbTime
+        except (IndexError):
+            return True
 
     def filterList(self, str):
         '''Return list of tuples matching filter'''
@@ -139,6 +144,8 @@ class musicDB:
 
     def setSync(self, relpath, sync):
         self.cursor.execute("UPDATE file SET sync = ? WHERE relpath = ?", (sync, relpath))
+        self.connection.commit()
+        print "Toggled %s to %s" % (relpath, sync)
         return
 
 def main():

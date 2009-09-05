@@ -141,8 +141,8 @@ class dbView:
         '''Prints "0"'''
         toggle = self.filterModel.convert_path_to_child_path(toggle)
         self.listStore[toggle][6] = not self.listStore[toggle][6]
-        print "Toggled %s to %s" % (self.listStore[toggle][0], self.listStore[toggle][6])
         self.db.setSync(self.listStore[toggle][0], self.listStore[toggle][6])
+        print self.db.syncList()
         return
 
     def column_callback(self, column):
@@ -152,21 +152,29 @@ class dbView:
         return
     
 def sync(rootDir, db):
+    syncList = []
     for root, dirs, files in simplesync_db.os.walk(rootDir):
         for name in files:
-            relpath = unicode(simplesync_db.os.path.relpath(rootDir, name), 'latin-1')
-            print relpath
             if not '.mp3' in name[-4:]:
                 continue
+            # Get path to file
+            abspath = simplesync_db.os.path.join(root, name)
+            # Encode in unicode to handle funky file names
+            relpath = unicode(simplesync_db.os.path.relpath(abspath, rootDir), 'latin-1')
+            if db.isNewer(rootDir, relpath):
+                syncList.append(relpath)
+    print syncList
+            
 
 def openDB(dbfile):
     return simplesync_db.musicDB(dbfile)
 
 def main():
-    db = openDB(':memory:')
-    db.addDir("/media/disk/Music/0-9")
+    db = openDB('/tmp/test.db')
+    #db.rebuild()
+    #db.addDir("/media/disk/Music/0-9")
     window = dbView(db)
-    #sync('/media/disk/Music/0-9', db)
+    sync('/media/disk/Music/0-9', db)
     gtk.main()
     return 0
 
