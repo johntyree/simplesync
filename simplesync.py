@@ -27,7 +27,7 @@ class dbView:
     def __init__(self, db):
         # Initialize model
         self.db = db
-        self.testBool = True
+        self.filtered = False
 
         ## Generate tooltips
         self.tooltips = gtk.Tooltips()
@@ -65,11 +65,6 @@ class dbView:
         col_cell_toggle.connect('toggled', self.toggle_callback)
         self.tree.append_column(self.syncCol)
 
-        # Track list
-        # We have to make a filter here and use get_model to ref the backend so
-        # we can search later on.
-        self.listStore = gtk.ListStore(str, str, str, str, str, int, bool).filter_new()
-
         # Track window
         self.scroll = gtk.ScrolledWindow()
         self.scroll.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
@@ -79,7 +74,6 @@ class dbView:
         self.searchBar = gtk.Entry()
         self.searchBar.connect('activate', self.searchBar_callback)
         self.tooltips.set_tip(self.searchBar, "Enter query")
-        self.searchBar.set_text("Enter query")
         self.searchBar.select_region(0, -1)
 
         # Toggle-all button
@@ -112,9 +106,14 @@ class dbView:
         self.dbwindow.show_all()
 
         # Populate
+        # We have to make a filter here and use get_model to ref the backend so
+        # we can search later on
+        self.listStore = gtk.ListStore(str, str, str, str, str, int, bool)
         for track in db.allList():
-            self.listStore.get_model().append([track['relpath'], track['title'], track['artist'], track['album'], track['genre'], track['year'], track['sync']])
-        self.tree.set_model(self.listStore)
+            self.listStore.append([track['relpath'], track['title'], track['artist'], track['album'], track['genre'], track['year'], track['sync']])
+        self.filterModel = self.listStore.filter_new()
+        self.filterModel.set_visible_func(self.filterFunc, self.searchBar)
+        self.tree.set_model(self.filterModel)
 
     def toggleAllButton_callback(self, button):
         for row in self.listStore:
@@ -128,28 +127,22 @@ class dbView:
     def searchBar_callback(self, searchBar):
         '''Limit results to those containing 'searchBar'.'''
         print "Search for '%s'." % searchBar.get_text()
-        listStore = self.listStore.filter_new()
-        listStore.set_visible_func(self.filterFunc, searchBar)
-        self.tree.set_model(listStore)
+        self.filterModel.refilter()
         searchBar.select_region(0, -1)
         return 0
 
-    def filterFunc(self, model, row, entry):
+    def filterFunc(self, model, row, searchBar):
+        if self.filtered: return True
         for text in model.get(row, 1, 2, 3, 4,):
-            if entry.get_text().lower() in text.lower(): return True
+            if searchBar.get_text().lower() in text.lower(): return True
 
     def toggle_callback(self, cell, toggle):
         '''Toggle sync status of file in db.'''
-        print cell, toggle
-        #itr = self.listStore.get_iter(cell)
-        #toggled = not self.listStore.get_value(itr, 6)
-        #self.listStore.set_value(itr, 6, toggled)
-        #toggle = self.listStore.convert_path_to_child_path(toggle)
-        #print toggle
-        #self.listStore.get_model()[toggle][6] = not self.listStore.get_model()[toggle][6]
-        #print "Toggled %s to %s" % (self.listStore[toggle][0], self.listStore[toggle][6])
-        #self.db.setSync(self.listStore.get_model()[toggle][0], self.listStore.get_model()[toggle][6])
-        print self.db.syncList()
+        '''Prints "0"'''
+        toggle = self.filterModel.convert_path_to_child_path(toggle)
+        self.listStore[toggle][6] = not self.listStore[toggle][6]
+        print "Toggled %s to %s" % (self.listStore[toggle][0], self.listStore[toggle][6])
+        self.db.setSync(self.listStore[toggle][0], self.listStore[toggle][6])
         return
 
     def column_callback(self, column):
@@ -158,6 +151,14 @@ class dbView:
         print "Sort by %s." % column.get_title()
         return
     
+def sync(rootDir, db):
+    for root, dirs, files in simplesync_db.os.walk(rootDir):
+        for name in files:
+            relpath = unicode(simplesync_db.os.path.relpath(rootDir, name), 'latin-1')
+            print relpath
+            if not '.mp3' in name[-4:]:
+                continue
+
 def openDB(dbfile):
     return simplesync_db.musicDB(dbfile)
 
@@ -165,6 +166,7 @@ def main():
     db = openDB(':memory:')
     db.addDir("/media/disk/Music/0-9")
     window = dbView(db)
+    #sync('/media/disk/Music/0-9', db)
     gtk.main()
     return 0
 

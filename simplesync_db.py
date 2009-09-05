@@ -65,6 +65,7 @@ class musicDB:
         '''Add a file to the database'''
         statinfo = os.stat(abspath)
         f = tagpy.FileRef(abspath)
+        relpath = unicode(os.path.relpath(abspath, rootdir), 'latin-1')
         cursor = self.cursor
         cursor.execute('SELECT id FROM artist WHERE name = ?', (f.tag().artist,))
         try:
@@ -87,7 +88,6 @@ class musicDB:
             cursor.execute('INSERT INTO album VALUES (null, ?)', (f.tag().album,))
             cursor.execute('SELECT id FROM album WHERE name = ?', (f.tag().album,))
             album_id = cursor.fetchall()[0][0]
-        relpath = unicode(os.path.relpath(abspath, rootdir), 'latin-1')
         cursor.execute('INSERT INTO file VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', (relpath, statinfo.st_mtime, statinfo.st_size, f.tag().title, artist_id, album_id, genre_id, f.tag().year, True))
         self.connection.commit()
 
