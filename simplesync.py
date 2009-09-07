@@ -27,7 +27,8 @@ class dbView:
     def __init__(self, db):
         # Initialize model
         self.db = db
-        self.allToggle = True
+        self.allToggle = None
+        self.filtered = None
 
         ## Generate tooltips
         self.tooltips = gtk.Tooltips()
@@ -123,9 +124,11 @@ class dbView:
 
     def syncAllButton_callback(self, button):
         '''Set or unset sync status of all visible files'''
+        self.allToggle = not self.allToggle
         for i, row in enumerate(self.filterModel):
-            self.toggle_callback(None, i)
-
+            childPath = self.filterModel.convert_path_to_child_path(i)
+            self.listStore[childPath][6] = self.allToggle
+            self.db.setSync(self.listStore[childPath][0], self.allToggle)
         return
 
     def searchBar_callback(self, searchBar):
@@ -137,8 +140,9 @@ class dbView:
 
     def filterFunc(self, model, row, searchBar):
         if self.filtered: return True
+        searchBarText = searchBar.get_text().lower() 
         for text in model.get(row, 1, 2, 3, 4,):
-            if searchBar.get_text().lower() in text.lower(): return True
+            if searchBarText in text.lower(): return True
 
     def toggle_callback(self, cell, toggle):
         '''Toggle sync status of file in db.'''
@@ -146,7 +150,6 @@ class dbView:
         toggle = self.filterModel.convert_path_to_child_path(toggle)
         self.listStore[toggle][6] = not self.listStore[toggle][6]
         self.db.setSync(self.listStore[toggle][0], self.listStore[toggle][6])
-        print self.db.syncList()
         return
 
     def column_callback(self, column):
@@ -155,19 +158,6 @@ class dbView:
         print "Sort by %s." % column.get_title()
         return
     
-def copyNewer(rootDir, db):
-    syncList = []
-    for root, dirs, files in simplesync_db.os.walk(rootDir):
-        for name in files:
-            if not '.mp3' in name[-4:]:
-                continue
-            # Get path to file
-            abspath = simplesync_db.os.path.join(root, name)
-            # Encode in unicode to handle funky file names
-            relpath = unicode(simplesync_db.os.path.relpath(abspath, rootDir), 'latin-1')
-            if db.isNewer(rootDir, relpath):
-                syncList.append(relpath)
-    print syncList
 
 def openDB(dbfile):
     return simplesync_db.musicDB(dbfile)
@@ -177,7 +167,7 @@ def main():
     #db.rebuild()
     #db.addDir("/media/disk/Music/0-9")
     window = dbView(db)
-    copyNewer('/media/disk/Music/0-9', db)
+    print db.copyList('/media/disk/Music/0-9')
     gtk.main()
     return 0
 

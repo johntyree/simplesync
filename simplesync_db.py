@@ -123,6 +123,18 @@ class musicDB:
             allList.append({"relpath" : relpath, "mtime" : mtime, "size" : size, "title" : title, "artist" : artist, "album" : album, "genre" : genre, "year" : year, "sync" : sync}) 
         return allList
 
+    def copyList(self, rootDir):
+        '''Returns a list of files to be transfered at next sync'''
+        copyList = []
+        #for root, dirs, files in os.walk(rootDir):
+        for relpath in self.syncList():
+            #for name in files:
+                if not '.mp3' in relpath[-4:]:
+                    print relpath
+                    continue
+                if self.isNewer(rootDir, relpath):
+                    copyList.append(relpath)
+        return copyList
 
     def trackList(self):
         '''Return a list of relative paths of all files in db'''
@@ -145,7 +157,7 @@ class musicDB:
     def setSync(self, relpath, sync):
         self.cursor.execute("UPDATE file SET sync = ? WHERE relpath = ?", (sync, relpath))
         self.connection.commit()
-        print "Toggled %s to %s" % (relpath, sync)
+        #print "Toggled %s to %s" % (relpath, sync)
         return
 
 def main():
