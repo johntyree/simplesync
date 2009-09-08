@@ -43,16 +43,6 @@ class musicDB:
         self.cursor.execute('INSERT INTO metadata VALUES (?, ?)', ("simplesync_version", 0.0))
         self.connection.commit()
 
-    def addDir(self, rootDir):
-        '''Recursively import a directory into the database'''
-        for root, dirs, files in os.walk(rootDir):
-            #print root, dirs, files
-            for name in files:
-                if not '.mp3' in name[-4:]:
-                    continue
-                abspath = os.path.join(root, name)
-                self.updateFile(rootDir, abspath)
-
     def removeFile(self, rootdir, abspath):
         '''Remove a file from the database'''
         relpath = unicode(os.path.relpath(abspath, rootdir), 'latin-1')
@@ -68,30 +58,41 @@ class musicDB:
         statinfo = os.stat(abspath)
         f = tagpy.FileRef(abspath)
         relpath = unicode(os.path.relpath(abspath, rootdir), 'latin-1')
-        cursor = self.cursor
-        cursor.execute('SELECT id FROM artist WHERE name = ?', (f.tag().artist,))
-        try:
-            artist_id = cursor.fetchall()[0][0]
-        except (IndexError):
-            cursor.execute('INSERT INTO artist VALUES (null, ?)', (f.tag().artist,))
-            cursor.execute('SELECT id FROM artist WHERE name = ?', (f.tag().artist,))
-            artist_id = cursor.fetchall()[0][0]
-        cursor.execute('SELECT id FROM genre WHERE name = ?', (f.tag().genre,))
-        try:
-            genre_id = cursor.fetchall()[0][0]
-        except (IndexError):
-            cursor.execute('INSERT INTO genre VALUES (null, ?)', (f.tag().genre,))
-            cursor.execute('SELECT id FROM genre WHERE name = ?', (f.tag().genre,))
-            genre_id = cursor.fetchall()[0][0]
-        cursor.execute('SELECT id FROM album WHERE name = ?', (f.tag().album,))
-        try:
-            album_id = cursor.fetchall()[0][0]
-        except (IndexError):
-            cursor.execute('INSERT INTO album VALUES (null, ?)', (f.tag().album,))
-            cursor.execute('SELECT id FROM album WHERE name = ?', (f.tag().album,))
-            album_id = cursor.fetchall()[0][0]
-        cursor.execute('INSERT INTO file VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', (relpath, statinfo.st_mtime, statinfo.st_size, f.tag().title, artist_id, album_id, genre_id, f.tag().year, True))
+        # One for each field...
+        self.cursor.execute('SELECT id FROM artist WHERE name = ?', (f.tag().artist,))
+        temp = self.cursor.fetchall()
+        if temp == []:
+            self.cursor.execute('INSERT INTO artist VALUES (null, ?)', (f.tag().artist,))
+            self.cursor.execute('SELECT id FROM artist WHERE name = ?', (f.tag().artist,))
+            temp = self.cursor.fetchall()
+        artist_id = temp[0][0]
+        self.cursor.execute('SELECT id FROM genre WHERE name = ?', (f.tag().genre,))
+        temp = self.cursor.fetchall()
+        if temp == []:
+            self.cursor.execute('INSERT INTO genre VALUES (null, ?)', (f.tag().genre,))
+            self.cursor.execute('SELECT id FROM genre WHERE name = ?', (f.tag().genre,))
+            temp = self.cursor.fetchall()
+        genre_id = temp[0][0]
+        self.cursor.execute('SELECT id FROM album WHERE name = ?', (f.tag().album,))
+        temp = self.cursor.fetchall()
+        if temp == []:
+            self.cursor.execute('INSERT INTO album VALUES (null, ?)', (f.tag().album,))
+            self.cursor.execute('SELECT id FROM album WHERE name = ?', (f.tag().album,))
+            temp = self.cursor.fetchall()
+        album_id = temp[0][0]
+        self.cursor.execute('INSERT INTO file VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', (relpath, statinfo.st_mtime, statinfo.st_size, f.tag().title, artist_id, album_id, genre_id, f.tag().year, True))
         self.connection.commit()
+
+    def recurseDir(self, rootDir, func = updateFile):
+        '''Recursively passes a directory to func'''
+        for root, dirs, files in os.walk(rootDir):
+            print root
+            for name in files:
+                if not '.mp3' in name[-4:]:
+                    continue
+                abspath = os.path.join(root, name)
+                func(rootDir, abspath)
+                #self.updateFile(rootDir, abspath)
 
     def isNewer(self, rootdir, relpath):
         '''Return True if file has been modified.'''
@@ -155,6 +156,7 @@ class musicDB:
         return syncList
 
     def setSync(self, relpath, sync):
+        print relpath
         self.cursor.execute("UPDATE file SET sync = ? WHERE relpath = ?", (sync, relpath))
         self.connection.commit()
         #print "Toggled %s to %s" % (relpath, sync)

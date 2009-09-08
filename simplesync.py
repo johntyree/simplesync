@@ -136,7 +136,7 @@ class dbView:
         print "Search for '%s'." % searchBar.get_text()
         self.filterModel.refilter()
         searchBar.select_region(0, -1)
-        return 0
+            return 0
 
     def filterFunc(self, model, row, searchBar):
         if self.filtered: return True
@@ -163,11 +163,12 @@ def openDB(dbfile):
     return simplesync_db.musicDB(dbfile)
 
 def main():
-    db = openDB('/tmp/test.db')
+    db = openDB('/tmp/simplesync.db')
     #db.rebuild()
-    #db.addDir("/media/disk/Music/0-9")
+    #db.recurseDir("/media/disk/Music/A", db.addFile)
+    #print db.allList()
     window = dbView(db)
-    print db.copyList('/media/disk/Music/0-9')
+    print db.copyList('/media/disk/Music/A')
     gtk.main()
     return 0
 
