@@ -29,6 +29,7 @@ class musicDB:
 
     def __init__ (self, dbfile):
         '''Initialize a musicDB object connected to <dbfile>'''
+        self.dbfile = dbfile
         self.connection = sqlite.connect(dbfile)
         self.cursor = self.connection.cursor()
 

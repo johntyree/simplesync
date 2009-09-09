@@ -82,10 +82,15 @@ class dbView:
         self.toggleAllButton.set_label("Toggle")
         self.toggleAllButton.connect('released', self.toggleAllButton_callback)
 
-        # Sync-all button
+        # Set all button
         self.syncAllButton = gtk.Button()
         self.syncAllButton.set_label("All")
         self.syncAllButton.connect('released', self.syncAllButton_callback)
+
+        # Sync button
+        self.syncButton = gtk.Button()
+        self.syncButton.set_label("Sync")
+        self.syncButton.connect('released', self.syncButton_callback)
 
         # Window layout
         self.vbox1 = gtk.VBox(False, 0)
@@ -94,6 +99,7 @@ class dbView:
         self.hbox1.pack_start(self.searchBar, True, True, 1)
         self.hbox1.pack_start(self.syncAllButton, False, False, 1)
         self.hbox1.pack_start(self.toggleAllButton, False, False, 1)
+        self.hbox1.pack_start(self.syncButton, False, False, 1)
         self.vbox1.pack_start(self.hbox1, False, False, 1)
 
         # Initialize
@@ -115,21 +121,6 @@ class dbView:
         self.filterModel = self.listStore.filter_new()
         self.filterModel.set_visible_func(self.filterFunc, self.searchBar)
         self.tree.set_model(self.filterModel)
-
-    def toggleAllButton_callback(self, button):
-        '''Toggle sync status of all visible files'''
-        for i, row in enumerate(self.filterModel):
-            self.toggle_callback(None, i)
-        return
-
-    def syncAllButton_callback(self, button):
-        '''Set or unset sync status of all visible files'''
-        self.allToggle = not self.allToggle
-        for i, row in enumerate(self.filterModel):
-            childPath = self.filterModel.convert_path_to_child_path(i)
-            self.listStore[childPath][6] = self.allToggle
-            self.db.setSync(self.listStore[childPath][0], self.allToggle)
-        return
 
     def searchBar_callback(self, searchBar):
         '''Limit results to those containing 'searchBar'.'''
@@ -157,7 +148,27 @@ class dbView:
         print column.get_sort_column_id()
         print "Sort by %s." % column.get_title()
         return
+
+    def toggleAllButton_callback(self, button):
+        '''Toggle sync status of all visible files'''
+        for i, row in enumerate(self.filterModel):
+            self.toggle_callback(None, i)
+        return
+
+    def syncAllButton_callback(self, button):
+        '''Set or unset sync status of all visible files'''
+        self.allToggle = not self.allToggle
+        for i, row in enumerate(self.filterModel):
+            childPath = self.filterModel.convert_path_to_child_path(i)
+            self.listStore[childPath][6] = self.allToggle
+            self.db.setSync(self.listStore[childPath][0], self.allToggle)
+        return
     
+    def syncButton_callback(self, button):
+        print "syncing to %s" % self.searchBar.get_text()
+        for file in self.db.copyList(self.searchBar.get_text()):
+            print file
+            shutil.copy2(self.db.dbfile, self.searchBar.get_text())
 
 def openDB(dbfile):
     return simplesync_db.musicDB(dbfile)
