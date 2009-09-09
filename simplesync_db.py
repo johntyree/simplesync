@@ -156,6 +156,7 @@ class musicDB:
         return syncList
 
     def setSync(self, relpath, sync):
+        relpath = unicode(relpath, 'latin-1')
         print relpath
         self.cursor.execute("UPDATE file SET sync = ? WHERE relpath = ?", (sync, relpath))
         self.connection.commit()

@@ -136,7 +136,7 @@ class dbView:
         print "Search for '%s'." % searchBar.get_text()
         self.filterModel.refilter()
         searchBar.select_region(0, -1)
-            return 0
+        return 0
 
     def filterFunc(self, model, row, searchBar):
         if self.filtered: return True
