@@ -21,19 +21,29 @@
 
 
 from pysqlite2 import dbapi2 as sqlite
-import os, tagpy
+import os, tagpy, time
 
 
 class musicDB:
-    '''A database of file information and tag attributes'''
+    '''A database of file information and tag attributes.'''
 
     def __init__ (self, dbfile):
-        '''Initialize a musicDB object connected to <dbfile>'''
+        '''Initialize a musicDB object connected to <dbfile>.'''
         self.dbfile = dbfile
         self.connection = sqlite.connect(dbfile)
-        self.cursor = self.connection.cursor()
+        self.cursor = self.connection.cursor() 
+
+    def mtime(self, time = -1):
+        '''Return or set the time, in seconds, that the db was last modified.'''
+        if (time != -1):
+            self.cursor.execute('SELECT value FROM metadata WHERE name = mtime')
+            return self.cursor.fetchall()[0][0]
+        self.cursor.execute('UPDATE metadata SET value = ? WHERE name = mtime', (time,))
+        self.connection.commit()
+        return True
 
     def rebuild(self):
+        '''Create a new empty database.'''
         for table in "file", "album", "artist", "genre", "metadata":
             self.cursor.execute('DROP TABLE IF EXISTS %s' % (table,))
         self.cursor.execute('CREATE TABLE file (relpath VARCHAR(255) PRIMARY KEY, mtime DECIMAL(12), size INTEGER(12), title VARCHAR(255), artist_id INTEGER, album_id INTEGER, genre_id INTEGER, year INTEGER, sync BOOLEAN)')
@@ -43,19 +53,22 @@ class musicDB:
         self.cursor.execute('INSERT INTO metadata VALUES (?, ?)', ("db_version", 0.0))
         self.cursor.execute('INSERT INTO metadata VALUES (?, ?)', ("simplesync_version", 0.0))
         self.connection.commit()
+        self.mtime(time.localtime())
 
     def removeFile(self, rootdir, abspath):
-        '''Remove a file from the database'''
+        '''Remove a file from the database.'''
         relpath = unicode(os.path.relpath(abspath, rootdir), 'latin-1')
         self.cursor.execute('DELETE FROM file WHERE relpath = ?', (relpath,)) 
+        self.mtime(time.localtime())
 
     def updateFile(self, rootdir, abspath):
         '''Update a file in the database'''
         self.removeFile(rootdir, abspath)
         self.addFile(rootdir, abspath)
+        self.mtime(time.localtime())
 
     def addFile(self, rootdir, abspath):
-        '''Add a file to the database'''
+        '''Add a file and its tag information to the database.'''
         statinfo = os.stat(abspath)
         f = tagpy.FileRef(abspath)
         relpath = unicode(os.path.relpath(abspath, rootdir), 'latin-1')
@@ -83,9 +96,10 @@ class musicDB:
         album_id = temp[0][0]
         self.cursor.execute('INSERT INTO file VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', (relpath, statinfo.st_mtime, statinfo.st_size, f.tag().title, artist_id, album_id, genre_id, f.tag().year, True))
         self.connection.commit()
+        self.mtime(time.localtime())
 
     def recurseDir(self, rootDir, func = updateFile):
-        '''Recursively passes a directory to func'''
+        '''Recursively call func() on a relative path.'''
         for root, dirs, files in os.walk(rootDir):
             print root
             for name in files:
@@ -106,12 +120,12 @@ class musicDB:
             return True
 
     def filterList(self, str):
-        '''Return list of tuples matching filter'''
+        '''Return list of tuples of metadata from the db which match str.'''
         list = filter(lambda x: str in x, self.allList())
         return list
 
     def allList(self):
-        '''Return a list of dictionaries of metadata from each track'''
+        '''Return a list of dictionaries of metadata from each track.'''
         self.cursor.execute('SELECT * FROM file')
         rows = self.cursor.fetchall()
         allList = []
@@ -126,20 +140,22 @@ class musicDB:
         return allList
 
     def copyList(self, rootDir):
-        '''Returns a list of files to be transfered at next sync'''
+        '''Returns a list of files to be transfered at next sync.'''
+        print 'copyList()... '
         copyList = []
         #for root, dirs, files in os.walk(rootDir):
         for relpath in self.syncList():
             #for name in files:
-                if not '.mp3' in relpath[-4:]:
+                if not '.mp3' in relpath[-4:].lower():
                     print relpath
                     continue
                 if self.isNewer(rootDir, relpath):
                     copyList.append(relpath)
+        print 'end'
         return copyList
 
     def trackList(self):
-        '''Return a list of relative paths of all files in db'''
+        '''Return a list of relative paths of all files in db.'''
         self.cursor.execute('SELECT relpath FROM file')
         tupleList = self.cursor.fetchall()
         trackList = []
@@ -148,7 +164,7 @@ class musicDB:
         return trackList
 
     def syncList(self):
-        '''Return a list of relative paths of all files marked for sync'''
+        '''Return a list of relative paths of all files marked for sync.'''
         self.cursor.execute('SELECT relpath FROM file WHERE sync = 1')
         tupleList = self.cursor.fetchall()
         syncList = []
@@ -156,12 +172,15 @@ class musicDB:
             syncList.append(t[0])
         return syncList
 
-    def setSync(self, relpath, sync):
-        relpath = unicode(relpath, 'latin-1')
-        print relpath
-        self.cursor.execute("UPDATE file SET sync = ? WHERE relpath = ?", (sync, relpath))
+    def setSync(self, relpathList):
+        '''Sets the sync value of each of a tuple of files in the db.
+        The tuple should contain the file's relpath and desired sync value.'''
+        for relpath, sync in relpathList: 
+            relpath = unicode(relpath, 'latin-1')
+            print relpath
+            #print "Toggled %s to %s" % (relpath, sync)
+            self.cursor.execute("UPDATE file SET sync = ? WHERE relpath = ?", (sync, relpath))
         self.connection.commit()
-        #print "Toggled %s to %s" % (relpath, sync)
         return
 
 def main():

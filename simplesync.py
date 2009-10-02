@@ -19,7 +19,9 @@
 #       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #       MA 02110-1301, USA.
 
-import gtk, simplesync_db
+# Speed this up by limiting cursor.commit() calls
+
+import gtk, simplesync_db, time
 
 class dbView:
     '''Main window for viewing simplesync musicDB'''
@@ -74,32 +76,35 @@ class dbView:
         # Search bar
         self.searchBar = gtk.Entry()
         self.searchBar.connect('activate', self.searchBar_callback)
-        self.tooltips.set_tip(self.searchBar, "Enter query")
         self.searchBar.select_region(0, -1)
+        self.tooltips.set_tip(self.searchBar, "Enter query")
 
         # Toggle-all button
         self.toggleAllButton = gtk.Button()
         self.toggleAllButton.set_label("Toggle")
         self.toggleAllButton.connect('released', self.toggleAllButton_callback)
+        self.tooltips.set_tip(self.toggleAllButton, "Toggle sync of all files")
 
         # Set all button
-        self.syncAllButton = gtk.Button()
-        self.syncAllButton.set_label("All")
-        self.syncAllButton.connect('released', self.syncAllButton_callback)
+        self.setAllButton = gtk.Button()
+        self.setAllButton.set_label("Set all")
+        self.setAllButton.connect('released', self.setAllButton_callback)
+        self.tooltips.set_tip(self.setAllButton, "Enable or disable sync of all files")
 
         # Sync button
-        self.syncButton = gtk.Button()
-        self.syncButton.set_label("Sync")
-        self.syncButton.connect('released', self.syncButton_callback)
+        self.syncAllButton = gtk.Button()
+        self.syncAllButton.set_label("Sync")
+        self.syncAllButton.connect('released', self.syncAllButton_callback)
+        self.tooltips.set_tip(self.syncAllButton, "Sync active files to device")
 
         # Window layout
         self.vbox1 = gtk.VBox(False, 0)
         self.hbox1 = gtk.HBox(False, 0)
         self.vbox1.pack_start(self.scroll, True, True, 1)
         self.hbox1.pack_start(self.searchBar, True, True, 1)
-        self.hbox1.pack_start(self.syncAllButton, False, False, 1)
+        self.hbox1.pack_start(self.setAllButton, False, False, 1)
         self.hbox1.pack_start(self.toggleAllButton, False, False, 1)
-        self.hbox1.pack_start(self.syncButton, False, False, 1)
+        self.hbox1.pack_start(self.syncAllButton, False, False, 1)
         self.vbox1.pack_start(self.hbox1, False, False, 1)
 
         # Initialize
@@ -130,21 +135,21 @@ class dbView:
         return 0
 
     def filterFunc(self, model, row, searchBar):
+        '''Return True if searchBarText matches any part of any column in row'''
         if self.filtered: return True
         searchBarText = searchBar.get_text().lower() 
         for text in model.get(row, 1, 2, 3, 4,):
             if searchBarText in text.lower(): return True
 
     def toggle_callback(self, cell, toggle):
-        '''Toggle sync status of file in db.'''
-        '''Prints "0"'''
+        '''Toggle sync status of file in db'''
         toggle = self.filterModel.convert_path_to_child_path(toggle)
         self.listStore[toggle][6] = not self.listStore[toggle][6]
         self.db.setSync(self.listStore[toggle][0], self.listStore[toggle][6])
         return
 
     def column_callback(self, column):
-        '''Sort currently viewed tracks by column.'''
+        '''Sort currently viewed tracks by column'''
         print column.get_sort_column_id()
         print "Sort by %s." % column.get_title()
         return
@@ -155,20 +160,24 @@ class dbView:
             self.toggle_callback(None, i)
         return
 
-    def syncAllButton_callback(self, button):
+    def setAllButton_callback(self, button):
         '''Set or unset sync status of all visible files'''
+        fileList = ()
         self.allToggle = not self.allToggle
         for i, row in enumerate(self.filterModel):
             childPath = self.filterModel.convert_path_to_child_path(i)
             self.listStore[childPath][6] = self.allToggle
-            self.db.setSync(self.listStore[childPath][0], self.allToggle)
+            fileList.append(self.listStore[childPath][0], self.allToggle)
+        self.db.setSync(fileList)
         return
     
-    def syncButton_callback(self, button):
+    def syncAllButton_callback(self, button):
+        '''Copy 'syncList' from path defined by searchBar to database location'''
         print "syncing to %s" % self.searchBar.get_text()
         for file in self.db.copyList(self.searchBar.get_text()):
             print file
-            shutil.copy2(self.db.dbfile, self.searchBar.get_text())
+            #shutil.copy2(self.db.dbfile, self.searchBar.get_text())
+        self.mtime(time.localtime())
 
 def openDB(dbfile):
     return simplesync_db.musicDB(dbfile)
