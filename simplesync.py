@@ -95,8 +95,8 @@ class dbView:
         self.tooltips.set_tip(self.setAllButton, "Enable or disable sync of all files")
 
         # Sync button
-        self.syncAllButton = gtk.Button()
-        self.syncAllButton.set_label("Sync")
+        self.syncAllButton = gtk.Button('_Sync')
+        self.syncAllButton.set_image(gtk.image_new_from_stock(gtk.STOCK_REFRESH, gtk.ICON_SIZE_BUTTON))
         self.syncAllButton.connect('released', self.syncAllButton_callback)
         self.tooltips.set_tip(self.syncAllButton, "Sync active files to device")
 
