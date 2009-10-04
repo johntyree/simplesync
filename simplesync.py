@@ -21,14 +21,15 @@
 
 # Speed this up by limiting cursor.commit() calls
 
-import gtk, simplesync_db, time
+import gtk, simplesync_db, time, os
 
 class dbView:
     '''Main window for viewing simplesync musicDB'''
 
-    def __init__(self, db):
+    def __init__(self, dbFile = None):
+        self.dbFile = dbFile
+
         # Initialize model
-        self.db = db
         self.allToggle = None
         self.filtered = None
 
@@ -38,6 +39,7 @@ class dbView:
         ## Keyboard Accelerators
         self.AccelGroup = gtk.AccelGroup()
         self.AccelGroup.connect_group(ord('Q'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_LOCKED, lambda w, x, y, z: gtk.main_quit())
+        self.AccelGroup.connect_group(ord('P'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_LOCKED, lambda w, x, y, z: self.editPrefs())
 
         # Track view
         self.tree = gtk.TreeView()
@@ -118,8 +120,20 @@ class dbView:
         self.dbwindow.show_all()
 
         # Populate
+        try:
+            self.populate(self.dbFile)
+        except NameError:
+            pass
+
+    def populate(self, dbFile):
+        '''Load the database into the dbView.'''
         # We have to make a filter here and use get_model to ref the backend so
         # we can search later on
+        db = self.openDB(dbFile)
+        if db == None:
+            return
+        self.db = db
+        self.dbwindow.set_title('SimpleSync - %s' % dbFile)
         self.listStore = gtk.ListStore(str, str, str, str, str, int, bool)
         for track in db.allList():
             self.listStore.append([track['relpath'], track['title'], track['artist'], track['album'], track['genre'], track['year'], track['sync']])
@@ -135,17 +149,25 @@ class dbView:
         return 0
 
     def filterFunc(self, model, row, searchBar):
-        '''Return True if searchBarText matches any part of any column in row'''
+        '''Return True if searchBarText matches any part of any column in row.'''
         if self.filtered: return True
         searchBarText = searchBar.get_text().lower() 
         for text in model.get(row, 1, 2, 3, 4,):
             if searchBarText in text.lower(): return True
 
-    def toggle_callback(self, cell, toggle):
-        '''Toggle sync status of file in db'''
-        toggle = self.filterModel.convert_path_to_child_path(toggle)
-        self.listStore[toggle][6] = not self.listStore[toggle][6]
-        self.db.setSync(self.listStore[toggle][0], self.listStore[toggle][6])
+    def toggle_callback(self, cell, toggleList):
+        '''Toggle sync status of a tuple of files in db.'''
+        # Ugly workaround based on coincidence... toggleList must be an iteratable!
+        if cell != None:
+            toggleList = (toggleList,)
+        print toggleList[0]
+        fileList = []
+        # Build list of files to set.
+        for toggle in toggleList:
+            toggle = self.filterModel.convert_path_to_child_path(toggle)
+            self.listStore[toggle][6] = not self.listStore[toggle][6]
+            fileList.append((self.listStore[toggle][0], self.listStore[toggle][6]))
+        self.db.setSync(fileList)
         return
 
     def column_callback(self, column):
@@ -156,39 +178,118 @@ class dbView:
 
     def toggleAllButton_callback(self, button):
         '''Toggle sync status of all visible files'''
+        fileList = []
+        # Build list of files to toggle.
         for i, row in enumerate(self.filterModel):
-            self.toggle_callback(None, i)
+            fileList.append(i)
+        # Toggle them all at once
+        self.toggle_callback(None, fileList)
         return
 
     def setAllButton_callback(self, button):
         '''Set or unset sync status of all visible files'''
-        fileList = ()
+        fileList = []
         self.allToggle = not self.allToggle
         for i, row in enumerate(self.filterModel):
             childPath = self.filterModel.convert_path_to_child_path(i)
             self.listStore[childPath][6] = self.allToggle
-            fileList.append(self.listStore[childPath][0], self.allToggle)
+            fileList.append((self.listStore[childPath][0], self.allToggle))
         self.db.setSync(fileList)
         return
     
     def syncAllButton_callback(self, button):
-        '''Copy 'syncList' from path defined by searchBar to database location'''
-        print "syncing to %s" % self.searchBar.get_text()
-        for file in self.db.copyList(self.searchBar.get_text()):
-            print file
-            #shutil.copy2(self.db.dbfile, self.searchBar.get_text())
-        self.mtime(time.localtime())
+        '''Copy 'syncList' from path in searchBar to database location'''
+        rootDir = self.searchBar.get_text()
+        print "syncing to %s" % rootDir 
+        for file in self.db.copyList(rootDir):
+            abspath = os.path.join(rootDir, file).encode('latin-1')
+            shutil.copy2(abspath, TARGET)
+            self.db.updateFile(rootDir, abspath)
+        self.db.connection.commit()
+        self.db.mtime(time.time())
+        self.dbFile = gtk.Entry()
+        self.searchBar.connect('activate', self.searchBar_callback)
+        self.searchBar.select_region(0, -1)
+        self.tooltips.set_tip(self.searchBar, "Enter query")
 
-def openDB(dbfile):
-    return simplesync_db.musicDB(dbfile)
+    def editPrefs(self):
+        d = dbPrefsdialog()
+        try:
+            if d.response == gtk.RESPONSE_OK:
+                dbFile = d.get_Path('DB File')
+                if os.path.isfile(dbFile):
+                    self.populate(dbFile)
+                else:
+                    print "Bad dbFile!"
+        finally:
+            d.dialog.destroy()
+
+    def openDB(self, dbFile):
+        '''Returns a musicDB object connected to dbFile.'''
+        if dbFile != None:
+            if os.path.isfile(dbFile):
+                return simplesync_db.musicDB(dbFile)
+
+class dbPrefsdialog(gtk.Window):
+    '''Dialog box for setting file paths.'''
+    def __init__(self):
+        self.dialog = gtk.Dialog("File Prefs", self, 0, (gtk.STOCK_OK, gtk.RESPONSE_OK))
+        vbox = gtk.VBox(False, 8)
+        vbox.set_border_width(8)
+        self.fileEntryGroups = {}
+        for name in ('DB File', 'Source', 'Target'):
+            self.insertEntryGroup(vbox, name, self.fileEntryGroups)
+
+        self.dialog.vbox.pack_start(vbox, False, False, 0)
+        self.dialog.show_all()
+        self.response = self.dialog.run()
+
+    def insertEntryGroup(self, box, name, dict):
+        sizeGroup = gtk.SizeGroup(gtk.SIZE_GROUP_HORIZONTAL)
+        widget = gtk.Entry()
+        dict[name] = widget
+        label = gtk.Label(name)
+        label.set_mnemonic_widget(widget)
+        sizeGroup.add_widget(label)
+        button = gtk.Button(label = name, stock = gtk.STOCK_DIRECTORY)
+        button.connect('clicked', lambda x, y: self.on_browse_button_clicked(widget))
+        hbox = gtk.HBox(False, 8)
+        for i in (label, widget, button):
+            hbox.pack_start(i, False, False, 0)
+        box.pack_start(hbox, False, False, 0)
+
+    def on_browse_button_clicked(self, entry):
+        file = self.selectFile()
+        if file:
+            entry.set_text(file)
+
+    def get_Path(self, name):
+        return self.fileEntryGroups[name].get_text()
+
+    def selectFile(self):
+        '''Return selected file.'''
+        dialog = gtk.FileChooserDialog("Open..",
+                                       None,
+                                       gtk.FILE_CHOOSER_ACTION_OPEN,
+                                       (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
+                                        gtk.STOCK_OPEN, gtk.RESPONSE_OK))
+        dialog.set_default_response(gtk.RESPONSE_OK)
+        response = dialog.run()
+        try:
+            if response == gtk.RESPONSE_OK:
+                file = dialog.get_filename()
+                return file 
+            elif response == gtk.RESPONSE_CANCEL:
+                return
+        finally:
+            dialog.destroy()
 
 def main():
-    db = openDB('/tmp/simplesync.db')
     #db.rebuild()
-    #db.recurseDir("/media/disk/Music/A", db.addFile)
+    #db.recurseDir("/media/disk/Music/A", db.updateFile)
     #print db.allList()
-    window = dbView(db)
-    print db.copyList('/media/disk/Music/A')
+    window = dbView()
+    window.populate('/tmp/simplesync.db')
     gtk.main()
     return 0
 
