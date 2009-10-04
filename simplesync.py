@@ -78,26 +78,25 @@ class dbView:
 
         # Search bar
         self.searchBar = gtk.Entry()
-        self.searchBar.connect('activate', self.searchBar_callback)
-        self.searchBar.select_region(0, -1)
+        self.searchBar.connect('changed', self.searchBar_callback)
         self.tooltips.set_tip(self.searchBar, "Enter query")
 
         # Toggle-all button
         self.toggleAllButton = gtk.Button()
-        self.toggleAllButton.set_label("Toggle")
-        self.toggleAllButton.connect('released', self.toggleAllButton_callback)
+        self.toggleAllButton.set_label("_Toggle")
+        self.toggleAllButton.connect('clicked', self.toggleAllButton_callback)
         self.tooltips.set_tip(self.toggleAllButton, "Toggle sync of all files")
 
         # Set all button
         self.setAllButton = gtk.Button()
-        self.setAllButton.set_label("Set all")
-        self.setAllButton.connect('released', self.setAllButton_callback)
+        self.setAllButton.set_label("Set _all")
+        self.setAllButton.connect('clicked', self.setAllButton_callback)
         self.tooltips.set_tip(self.setAllButton, "Enable or disable sync of all files")
 
         # Sync button
         self.syncAllButton = gtk.Button('_Sync')
         self.syncAllButton.set_image(gtk.image_new_from_stock(gtk.STOCK_REFRESH, gtk.ICON_SIZE_BUTTON))
-        self.syncAllButton.connect('released', self.syncAllButton_callback)
+        self.syncAllButton.connect('clicked', self.syncAllButton_callback)
         self.tooltips.set_tip(self.syncAllButton, "Sync active files to device")
 
         # Window layout
@@ -143,7 +142,7 @@ class dbView:
             return
         db = self.openDB(dbFile)
         self.db = db
-        self.dbwindow.set_title('SimpleSync - %s' % dbFile)
+        self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ]' % (dbFile, self.db.sourceDir(), self.db.targetDir()))
         self.listStore = gtk.ListStore(str, str, str, str, str, int, bool)
         for track in db.allList():
             self.listStore.append([track['relpath'], track['title'], track['artist'], track['album'], track['genre'], track['year'], track['sync']])
@@ -155,7 +154,6 @@ class dbView:
         '''Limit results to those containing 'searchBar'.'''
         print "Search for '%s'." % searchBar.get_text()
         self.filterModel.refilter()
-        searchBar.select_region(0, -1)
         return 0
 
     def filterFunc(self, model, row, searchBar):
