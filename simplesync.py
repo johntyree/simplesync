@@ -161,7 +161,7 @@ class dbView:
     def filterFunc(self, model, row, searchBar):
         '''Return True if searchBarText matches any part of any column in row.'''
         if self.filtered: return True
-        searchBarText = searchBar.get_text().lower() 
+        searchBarText = searchBar.get_text().lower()
         for text in model.get(row, 1, 2, 3, 4,):
             if searchBarText in text.lower(): return True
 
@@ -257,7 +257,7 @@ class dbPrefsdialog(gtk.Window):
     def insertEntryGroup(self, box, name, dict, isFolder = False):
         # Folder is selected if isFolder == True
         print name, isFolder
-        sizeGroup = self.fileEntrySizeGroup 
+        sizeGroup = self.fileEntrySizeGroup
         widget = gtk.Entry()
         dict[name] = widget
         label = gtk.Label(name)

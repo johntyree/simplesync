@@ -1,19 +1,19 @@
 #!/usr/bin/env python
 #
 #       db.py
-#       
+#
 #       Copyright 2009 John Tyree <johntyree@gmail.com>
-#       
+#
 #       This program is free software; you can redistribute it and/or modify
 #       it under the terms of the GNU General Public License as published by
 #       the Free Software Foundation; either version 3 of the License, or
 #       (at your option) any later version.
-#       
+#
 #       This program is distributed in the hope that it will be useful,
 #       but WITHOUT ANY WARRANTY; without even the implied warranty of
 #       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #       GNU General Public License for more details.
-#       
+#
 #       You should have received a copy of the GNU General Public License
 #       along with this program; if not, write to the Free Software
 #       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -29,9 +29,16 @@ class musicDB:
 
     def __init__ (self, dbfile):
         '''Initialize a musicDB object connected to <dbfile>.'''
+        print "Connecting to %s" % dbfile
         self.dbfile = dbfile
+        isNew = False
+        if not os.path.isfile(dbfile):
+            isNew = True
+            print "New db!"
         self.connection = sqlite.connect(dbfile)
-        self.cursor = self.connection.cursor() 
+        self.cursor = self.connection.cursor()
+        if isNew:
+            self.rebuild()
 
     def mtime(self, time = None):
         '''Return or set the time, in seconds, of the start of the previous sync.'''
@@ -43,7 +50,8 @@ class musicDB:
         return True
 
     def rebuild(self):
-        '''Create a new empty database.'''
+        '''Construct a new empty database.'''
+        print "Rebuilding..."
         for table in "file", "album", "artist", "genre", "metadata":
             self.cursor.execute('DROP TABLE IF EXISTS %s' % (table,))
         self.cursor.execute('''
@@ -65,26 +73,26 @@ class musicDB:
         self.cursor.execute('INSERT INTO metadata VALUES (?, ?)', ("simplesync_version", 0.0))
         self.connection.commit()
 
-    def removeFile(self, rootDir, abspath):
+    def removeFile(self, sourceDir, abspath):
         '''Remove a file from the database.'''
-        relpath = os.path.relpath(abspath, rootDir)
+        relpath = os.path.relpath(abspath, sourceDir)
         try:
             relpath = unicode(relpath, 'latin-1')
         except TypeError:
             pass
-        self.cursor.execute('DELETE FROM file WHERE relpath = ?', (relpath,)) 
+        self.cursor.execute('DELETE FROM file WHERE relpath = ?', (relpath,))
 
-    def updateFile(self, rootDir, abspath):
+    def updateFile(self, sourceDir, abspath):
         '''Update a file in the database.'''
-        print rootDir, abspath
-        self.removeFile(rootDir, abspath)
-        self.addFile(rootDir, abspath)
+        print sourceDir, abspath
+        self.removeFile(sourceDir, abspath)
+        self.addFile(sourceDir, abspath)
 
-    def addFile(self, rootDir, abspath):
+    def addFile(self, sourceDir, abspath):
         '''Add a file and its tag information to the database.'''
         statinfo = os.stat(abspath)
         f = tagpy.FileRef(abspath)
-        relpath = unicode(os.path.relpath(abspath, rootDir), 'latin-1')
+        relpath = unicode(os.path.relpath(abspath, sourceDir), 'latin-1')
         # One for each field...
         self.cursor.execute('SELECT id FROM artist WHERE name = ?', (f.tag().artist,))
         temp = self.cursor.fetchall()
@@ -109,30 +117,40 @@ class musicDB:
         album_id = temp[0][0]
         self.cursor.execute('INSERT INTO file VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', (relpath, statinfo.st_mtime, statinfo.st_size, f.tag().title, artist_id, album_id, genre_id, f.tag().year, True))
 
-    def recurseDir(self, rootDir, func = updateFile):
+    def recurseDir(self, sourceDir, func = updateFile):
         '''Recursively call func() on a relative path.'''
-        for root, dirs, files in os.walk(rootDir):
+        for root, dirs, files in os.walk(sourceDir):
             print root
             for name in files:
                 if not '.mp3' in name[-4:]:
                     continue
                 abspath = os.path.join(root, name)
-                func(rootDir, abspath)
+                func(sourceDir, abspath)
         self.connection.commit()
+        self.sourceDir(sourceDir)
         return True
 
-    def isNewer(self, rootDir, relpath):
-        '''Return True if file at rootDir/relpath is newer or is not in database.'''
+   def sourceDir(self, dir = None):
+       if dir:
+           self.cursor.execute('INSERT INTO metadata VALUES (?, ?)', ('sourceDir', dir))
+           self.connection.commit()
+       else:
+           self.cursor.execute('SELECT FROM metadata value WHERE name = ?', ('sourceDir',))
+           dir = self.cursor.fetch()
+           return dir
+
+    def isNewer(self, sourceDir, relpath):
+        '''Return True if file at sourceDir/relpath is newer or is not in database.'''
         self.cursor.execute('SELECT mtime FROM file WHERE relpath = ?', (relpath,))
         try:
             dbTime = self.cursor.fetchall()[0][0]
-            fileTime = os.stat(os.path.join(rootDir, relpath)).st_mtime
+            fileTime = os.stat(os.path.join(sourceDir, relpath)).st_mtime
             return fileTime > dbTime
         except IndexError:
             return True
         except OSError:
             return False
-       
+
     def filterList(self, str):
         '''Return list of tuples of metadata from the db which match str.'''
         list = filter(lambda x: str in x, self.allList())
@@ -150,19 +168,19 @@ class musicDB:
             artist = self.cursor.fetchall()[0][0]
             self.cursor.execute('SELECT name FROM album where id = ?', (album_id,))
             album = self.cursor.fetchall()[0][0]
-            allList.append({"relpath" : relpath, "mtime" : mtime, "size" : size, "title" : title, "artist" : artist, "album" : album, "genre" : genre, "year" : year, "sync" : sync}) 
+            allList.append({"relpath" : relpath, "mtime" : mtime, "size" : size, "title" : title, "artist" : artist, "album" : album, "genre" : genre, "year" : year, "sync" : sync})
         return allList
 
-    def copyList(self, rootDir):
+    def copyList(self, sourceDir):
         '''Returns a list of files to be transfered at next sync.'''
         copyList = []
-        #for root, dirs, files in os.walk(rootDir):
+        #for root, dirs, files in os.walk(sourceDir):
         for relpath in self.syncList():
             #for name in files:
                 if not '.mp3' in relpath[-4:].lower():
                     print relpath
                     continue
-                if self.isNewer(rootDir, relpath):
+                if self.isNewer(sourceDir, relpath):
                     copyList.append(relpath)
         return copyList
 
@@ -187,7 +205,7 @@ class musicDB:
     def setSync(self, relpathList):
         '''Sets the sync value of each of a tuple of a tuple of files in the db.
         The each inner tupple contains the file's relpath and desired sync value.'''
-        for relpath, sync in relpathList: 
+        for relpath, sync in relpathList:
             relpath = unicode(relpath, 'latin-1')
             print relpath
             #print "Toggled %s to %s" % (relpath, sync)
@@ -196,11 +214,11 @@ class musicDB:
         return
 
 def main():
-    db = musicDB(":memory:") 
-    rootDir = "/media/disk/Music/R"
+    db = musicDB(":memory:")
+    sourceDir = "/media/disk/Music/R"
     db.rebuild()
     s = time.time()
-    db.recurseDir(rootDir, db.addFile)
+    db.recurseDir(sourceDir, db.addFile)
     print time.time() - s
 
 if __name__ == "__main__": main()
