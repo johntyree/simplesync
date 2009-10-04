@@ -130,14 +130,25 @@ class musicDB:
         self.sourceDir(sourceDir)
         return True
 
-   def sourceDir(self, dir = None):
+    def targetDir(self, dir = None):
        if dir:
-           self.cursor.execute('INSERT INTO metadata VALUES (?, ?)', ('sourceDir', dir))
+           self.cursor.execute('INSERT OR REPLACE INTO metadata VALUES (?, ?)', ('targetDir', dir))
            self.connection.commit()
        else:
-           self.cursor.execute('SELECT FROM metadata value WHERE name = ?', ('sourceDir',))
-           dir = self.cursor.fetch()
-           return dir
+           self.cursor.execute('SELECT value FROM metadata WHERE name = ?', ('targetDir',))
+           dir = self.cursor.fetchone()
+           if dir != None:
+               return dir[0]
+
+    def sourceDir(self, dir = None):
+       if dir:
+           self.cursor.execute('INSERT OR REPLACE INTO metadata VALUES (?, ?)', ('sourceDir', dir))
+           self.connection.commit()
+       else:
+           self.cursor.execute('SELECT value FROM metadata WHERE name = ?', ('sourceDir',))
+           dir = self.cursor.fetchone()
+           if dir != None:
+               return dir[0]
 
     def isNewer(self, sourceDir, relpath):
         '''Return True if file at sourceDir/relpath is newer or is not in database.'''

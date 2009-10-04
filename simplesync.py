@@ -207,9 +207,14 @@ class dbView:
 
     def syncAllButton_callback(self, button):
         '''Copy marked files from self.targetDir to self.sourceDir'''
-        print "Sync: %s -> %s" % (self.sourceDir, self.targetDir)
-        for file in self.db.copyList(self.sourceDir):
-            abspath = os.path.join(self.sourceDir, file).encode('latin-1')
+        sourceDir = self.db.sourceDir()
+        targetDir = self.db.targetDir()
+        while (not sourceDir or not targetDir) and self.editPrefs() == gtk.RESPONSE_OK:
+            sourceDir = self.db.sourceDir()
+            targetDir = self.db.targetDir()
+        print "Sync: %s -> %s" % (sourceDir, targetDir)
+        for file in self.db.copyList(sourceDir):
+            abspath = os.path.join(sourceDir, file).encode('latin-1')
             print abspath
             #shutil.copy2(abspath, TARGET)
             #self.db.updateFile(rootDir, abspath)
@@ -225,10 +230,11 @@ class dbView:
                 self.view(dbFile)
             source = d.get_Path('Source')
             if os.path.isdir(source):
-                self.sourceDir = source
+                self.db.sourceDir(source)
             target = d.get_Path('Target')
             if target != '':
-                self.targetDir = target
+                self.db.targetDir(target)
+        return d.response
 
     def openDB(self, dbFile):
         '''Returns a musicDB object connected to dbFile.'''
@@ -258,14 +264,15 @@ class dbPrefsdialog(gtk.Window):
         sizeGroup = self.fileEntrySizeGroup
         widget = gtk.Entry()
         dict[name] = widget
-        label = gtk.Label(name)
+        label = gtk.Label(name + ':')
+        label.set_alignment(1, 0.5)
         label.set_mnemonic_widget(widget)
         sizeGroup.add_widget(label)
         button = gtk.Button(name, gtk.STOCK_OPEN)
         button.connect('clicked', lambda x: self.on_browse_button_clicked(widget, isFolder))
         hbox = gtk.HBox(False, 8)
         for i in (label, widget, button):
-            hbox.pack_start(i, False, False, 0)
+            hbox.pack_start(i, False, False, 1)
         box.pack_start(hbox, False, False, 0)
 
     def on_browse_button_clicked(self, entry, isFolder = False):
