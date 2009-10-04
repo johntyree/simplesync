@@ -1,25 +1,23 @@
 #!/usr/bin/env python
 #
 #       filename - desc
-#       
+#
 #       Copyright 2009 John Tyree <johntyree@gmail.com>
-#       
+#
 #       This program is free software; you can redistribute it and/or modify
 #       it under the terms of the GNU General Public License as published by
 #       the Free Software Foundation; either version 3 of the License, or
 #       (at your option) any later version.
-#       
+#
 #       This program is distributed in the hope that it will be useful,
 #       but WITHOUT ANY WARRANTY; without even the implied warranty of
 #       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #       GNU General Public License for more details.
-#       
+#
 #       You should have received a copy of the GNU General Public License
 #       along with this program; if not, write to the Free Software
 #       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #       MA 02110-1301, USA.
-
-# Speed this up by limiting cursor.commit() calls
 
 import gtk, simplesync_db, time, os
 
@@ -56,7 +54,8 @@ class dbView:
             col.set_resizable(True)
             col.set_clickable(True)
             col.set_reorderable(True)
-            col.set_sort_column_id(i+1)
+            col.connect("clicked", self.rearrange, i+1)
+            #col.set_sort_column_id(i+1)
             col.set_property('max_width', 200)
             col.set_expand(False)
             #            col.connect('clicked', lambda w: self.column_callback(w))
@@ -64,8 +63,10 @@ class dbView:
         self.titleCol.set_expand(True)
         col_cell_toggle = gtk.CellRendererToggle()
         self.syncCol.pack_start(col_cell_toggle)
+        self.syncCol.set_clickable(True)
         self.syncCol.set_property('max_width', 35)
-        self.syncCol.add_attribute( col_cell_toggle, "active", 6)
+        self.syncCol.connect("clicked", self.rearrange, i+1)
+        self.syncCol.add_attribute(col_cell_toggle, "active", 6)
         col_cell_toggle.set_property('activatable', True)
         col_cell_toggle.connect('toggled', self.toggle_callback)
         self.tree.append_column(self.syncCol)
@@ -121,17 +122,26 @@ class dbView:
 
         # Populate
         try:
-            self.populate(self.dbFile)
+            self.view(self.dbFile)
         except NameError:
             pass
 
-    def populate(self, dbFile):
+    def rearrange(self, col, n):
+        if col.get_sort_order() == gtk.SORT_ASCENDING:
+            col.set_sort_order(gtk.SORT_DESCENDING)
+        else:
+            col.set_sort_order(gtk.SORT_ASCENDING)
+        self.listStore.set_sort_column_id(n, col.get_sort_order())
+        col.set_sort_indicator(True)
+
+    def view(self, dbFile):
         '''Load the database into the dbView.'''
         # We have to make a filter here and use get_model to ref the backend so
         # we can search later on
-        db = self.openDB(dbFile)
-        if db == None:
+        if dbFile == None:
+            print "No file specified!"
             return
+        db = self.openDB(dbFile)
         self.db = db
         self.dbwindow.set_title('SimpleSync - %s' % dbFile)
         self.listStore = gtk.ListStore(str, str, str, str, str, int, bool)
@@ -196,100 +206,106 @@ class dbView:
             fileList.append((self.listStore[childPath][0], self.allToggle))
         self.db.setSync(fileList)
         return
-    
+
     def syncAllButton_callback(self, button):
-        '''Copy 'syncList' from path in searchBar to database location'''
-        rootDir = self.searchBar.get_text()
-        print "syncing to %s" % rootDir 
-        for file in self.db.copyList(rootDir):
-            abspath = os.path.join(rootDir, file).encode('latin-1')
-            shutil.copy2(abspath, TARGET)
-            self.db.updateFile(rootDir, abspath)
+        '''Copy marked files from self.targetDir to self.sourceDir'''
+        print "Sync: %s -> %s" % (self.sourceDir, self.targetDir)
+        for file in self.db.copyList(self.sourceDir):
+            abspath = os.path.join(self.sourceDir, file).encode('latin-1')
+            print abspath
+            #shutil.copy2(abspath, TARGET)
+            #self.db.updateFile(rootDir, abspath)
         self.db.connection.commit()
         self.db.mtime(time.time())
-        self.dbFile = gtk.Entry()
-        self.searchBar.connect('activate', self.searchBar_callback)
-        self.searchBar.select_region(0, -1)
-        self.tooltips.set_tip(self.searchBar, "Enter query")
 
     def editPrefs(self):
         d = dbPrefsdialog()
-        try:
-            if d.response == gtk.RESPONSE_OK:
-                dbFile = d.get_Path('DB File')
-                if os.path.isfile(dbFile):
-                    self.populate(dbFile)
-                else:
-                    print "Bad dbFile!"
-        finally:
-            d.dialog.destroy()
+        if d.response == gtk.RESPONSE_OK:
+            dbFile = d.get_Path('DB File')
+            if os.path.isfile(dbFile):
+                self.dbFile = dbFile
+                self.view(dbFile)
+            source = d.get_Path('Source')
+            if os.path.isdir(source):
+                self.sourceDir = source
+            target = d.get_Path('Target')
+            if target != '':
+                self.targetDir = target
 
     def openDB(self, dbFile):
         '''Returns a musicDB object connected to dbFile.'''
-        if dbFile != None:
-            if os.path.isfile(dbFile):
-                return simplesync_db.musicDB(dbFile)
+        return simplesync_db.musicDB(dbFile)
 
 class dbPrefsdialog(gtk.Window):
     '''Dialog box for setting file paths.'''
     def __init__(self):
-        self.dialog = gtk.Dialog("File Prefs", self, 0, (gtk.STOCK_OK, gtk.RESPONSE_OK))
+        self.dialog = gtk.Dialog("File Prefs", self, 0, (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
+                                                         gtk.STOCK_OK, gtk.RESPONSE_OK))
         vbox = gtk.VBox(False, 8)
         vbox.set_border_width(8)
         self.fileEntryGroups = {}
-        for name in ('DB File', 'Source', 'Target'):
-            self.insertEntryGroup(vbox, name, self.fileEntryGroups)
+        self.fileEntrySizeGroup = gtk.SizeGroup(gtk.SIZE_GROUP_HORIZONTAL)
+        # Creating the labels, entry boxes, buttons
+        for i, name in enumerate(('DB File', 'Source', 'Target')):
+            self.insertEntryGroup(vbox, name, self.fileEntryGroups, i in (1, 2))
 
         self.dialog.vbox.pack_start(vbox, False, False, 0)
         self.dialog.show_all()
         self.response = self.dialog.run()
+        self.dialog.destroy()
 
-    def insertEntryGroup(self, box, name, dict):
-        sizeGroup = gtk.SizeGroup(gtk.SIZE_GROUP_HORIZONTAL)
+    def insertEntryGroup(self, box, name, dict, isFolder = False):
+        # Folder is selected if isFolder == True
+        print name, isFolder
+        sizeGroup = self.fileEntrySizeGroup 
         widget = gtk.Entry()
         dict[name] = widget
         label = gtk.Label(name)
         label.set_mnemonic_widget(widget)
         sizeGroup.add_widget(label)
-        button = gtk.Button(label = name, stock = gtk.STOCK_DIRECTORY)
-        button.connect('clicked', lambda x, y: self.on_browse_button_clicked(widget))
+        button = gtk.Button(name, gtk.STOCK_OPEN)
+        button.connect('clicked', lambda x: self.on_browse_button_clicked(widget, isFolder))
         hbox = gtk.HBox(False, 8)
         for i in (label, widget, button):
             hbox.pack_start(i, False, False, 0)
         box.pack_start(hbox, False, False, 0)
 
-    def on_browse_button_clicked(self, entry):
-        file = self.selectFile()
+    def on_browse_button_clicked(self, entry, isFolder = False):
+        file = self.selectFile(isFolder)
         if file:
             entry.set_text(file)
 
     def get_Path(self, name):
         return self.fileEntryGroups[name].get_text()
 
-    def selectFile(self):
+    def selectFile(self, isFolder):
         '''Return selected file.'''
-        dialog = gtk.FileChooserDialog("Open..",
+        if isFolder:
+            isFolder = gtk.FILE_CHOOSER_ACTION_SELECT_FOLDER
+        else:
+            isFolder = gtk.FILE_CHOOSER_ACTION_OPEN
+        dialog = gtk.FileChooserDialog("Select...",
                                        None,
-                                       gtk.FILE_CHOOSER_ACTION_OPEN,
+                                       isFolder,
                                        (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
                                         gtk.STOCK_OPEN, gtk.RESPONSE_OK))
         dialog.set_default_response(gtk.RESPONSE_OK)
+        dialog.set_select_multiple(False)
         response = dialog.run()
         try:
             if response == gtk.RESPONSE_OK:
-                file = dialog.get_filename()
-                return file 
+                return dialog.get_filename()
             elif response == gtk.RESPONSE_CANCEL:
                 return
         finally:
             dialog.destroy()
 
 def main():
-    #db.rebuild()
-    #db.recurseDir("/media/disk/Music/A", db.updateFile)
     #print db.allList()
-    window = dbView()
-    window.populate('/tmp/simplesync.db')
+    window = dbView('/tmp/ss2.db')
+    #window.db.recurseDir("/media/disk/Music/0-9", window.db.updateFile)
+    #window.view('/tmp/ss2.db')
+    #window.view('/tmp/simplesync.db')
     gtk.main()
     return 0
 
