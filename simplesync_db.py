@@ -52,8 +52,16 @@ class musicDB:
     def rebuild(self):
         '''Construct a new empty database.'''
         print "Rebuilding..."
-        for table in "file", "album", "artist", "genre", "metadata":
-            self.cursor.execute('DROP TABLE IF EXISTS %s' % (table,))
+
+        # Drop all tables ...
+        self.cursor.execute('''SELECT 'DROP TABLE ' || name || ';'
+                            FROM sqlite_master where type = 'table';''')
+        drops = self.cursor.fetchall()
+        for query in drops:
+            self.cursor.execute(query[0])
+        self.connection.commit()
+
+        # Start rebuilding
         self.cursor.execute('''
              CREATE TABLE file (
                 relpath VARCHAR(255) PRIMARY KEY,
