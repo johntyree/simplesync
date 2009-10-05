@@ -19,7 +19,7 @@
 #       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #       MA 02110-1301, USA.
 
-import gtk, simplesync_db, time, os
+import gtk, simplesync_db, time, os, shutil
 
 class dbView:
     '''Main window for viewing simplesync musicDB'''
@@ -70,6 +70,7 @@ class dbView:
         col_cell_toggle.set_property('activatable', True)
         col_cell_toggle.connect('toggled', self.toggle_callback)
         self.tree.append_column(self.syncCol)
+        self.tree.set_rules_hint(True)
 
         # Track window
         self.scroll = gtk.ScrolledWindow()
@@ -209,28 +210,34 @@ class dbView:
         '''Copy marked files from self.targetDir to self.sourceDir'''
         sourceDir = self.db.sourceDir()
         targetDir = self.db.targetDir()
-        while (not sourceDir or not targetDir) and self.editPrefs() == gtk.RESPONSE_OK:
+        # If we're missing some info, get it!
+        while (not sourceDir or not targetDir) and self.errorDialog('Specify a source and target') and self.editPrefs() == gtk.RESPONSE_OK:
             sourceDir = self.db.sourceDir()
             targetDir = self.db.targetDir()
         print "Sync: %s -> %s" % (sourceDir, targetDir)
         for file in self.db.copyList(sourceDir):
             abspath = os.path.join(sourceDir, file).encode('latin-1')
-            print abspath
-            #shutil.copy2(abspath, TARGET)
-            #self.db.updateFile(rootDir, abspath)
+            target = os.path.join(targetDir,file).encode('latin-1')
+            print abspath, '->', target
+            if not os.path.isdir(os.path.dirname(target)):
+                os.makedirs(os.path.dirname(target))
+            shutil.copy2(abspath, target)
+            self.db.updateFile(sourceDir, abspath)
         self.db.connection.commit()
         self.db.mtime(time.time())
 
     def editPrefs(self):
         d = dbPrefsdialog()
-        if d.response == gtk.RESPONSE_OK:
+        if d.response == gtk.RESPONSE_OK or d.response == gtk.RESPONSE_APPLY:
             dbFile = d.get_Path('DB File')
-            if os.path.isfile(dbFile):
+            if dbFile:
                 self.dbFile = dbFile
                 self.view(dbFile)
             source = d.get_Path('Source')
             if os.path.isdir(source):
                 self.db.sourceDir(source)
+                if d.response == gtk.RESPONSE_APPLY:
+                    self.db.recurseDir(source, self.db.updateFile)
             target = d.get_Path('Target')
             if target != '':
                 self.db.targetDir(target)
@@ -240,11 +247,23 @@ class dbView:
         '''Returns a musicDB object connected to dbFile.'''
         return simplesync_db.musicDB(dbFile)
 
+    def errorDialog(self, msg = "Error!"):
+        md = gtk.MessageDialog(,
+                               gtk.DIALOG_DESTROY_WITH_PARENT,
+                               gtk.MESSAGE_ERROR, 
+                               gtk.BUTTONS_CLOSE,
+                               msg)
+        md.run()
+        md.destroy()
+        return True
+
+
 class dbPrefsdialog(gtk.Window):
     '''Dialog box for setting file paths.'''
     def __init__(self):
         self.dialog = gtk.Dialog("File Prefs", self, 0, (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
                                                          gtk.STOCK_OK, gtk.RESPONSE_OK))
+        self.dialog.add_button(gtk.STOCK_SAVE_AS, gtk.RESPONSE_APPLY).set_label('Import')
         vbox = gtk.VBox(False, 8)
         vbox.set_border_width(8)
         self.fileEntryGroups = {}
@@ -260,7 +279,6 @@ class dbPrefsdialog(gtk.Window):
 
     def insertEntryGroup(self, box, name, dict, isFolder = False):
         # Folder is selected if isFolder == True
-        print name, isFolder
         sizeGroup = self.fileEntrySizeGroup
         widget = gtk.Entry()
         dict[name] = widget
