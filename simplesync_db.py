@@ -197,7 +197,6 @@ class musicDB:
         for relpath in self.syncList():
             #for name in files:
                 if not '.mp3' in relpath[-4:].lower():
-                    print relpath
                     continue
                 if self.isNewer(sourceDir, relpath):
                     copyList.append(relpath)

@@ -112,7 +112,7 @@ class dbView:
 
         # Initialize
         self.dbwindow = gtk.Window(gtk.WINDOW_TOPLEVEL)
-        self.dbwindow.set_title("simplesync")
+        self.dbwindow.set_title("SimpleSync")
         self.dbwindow.set_default_size(1000, 400)
         self.dbwindow.connect("destroy", lambda w: gtk.main_quit())
         self.dbwindow.add_accel_group(self.AccelGroup)
@@ -150,12 +150,15 @@ class dbView:
         self.filterModel = self.listStore.filter_new()
         self.filterModel.set_visible_func(self.filterFunc, self.searchBar)
         self.tree.set_model(self.filterModel)
+        self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ] (%s)' % (dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.listStore)))
 
     def searchBar_callback(self, searchBar):
         '''Limit results to those containing 'searchBar'.'''
-        print "Search for '%s'." % searchBar.get_text()
         self.filterModel.refilter()
-        return 0
+        if len(self.filterModel):
+            self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ] (%i/%i)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), len(self.listStore)))
+        else:
+            self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ] (%s)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.listStore)))
 
     def filterFunc(self, model, row, searchBar):
         '''Return True if searchBarText matches any part of any column in row.'''
