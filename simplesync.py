@@ -150,15 +150,26 @@ class dbView:
         self.filterModel = self.listStore.filter_new()
         self.filterModel.set_visible_func(self.filterFunc, self.searchBar)
         self.tree.set_model(self.filterModel)
-        self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ] (%s)' % (dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.listStore)))
+        self.updateTitle()
+
+    def updateTitle(self):
+        '''Update window title.'''
+        syncSize = self.db.syncSize() / 1024.**2
+        if syncSize > 1024:
+            syncSize /= 1024.0
+            syncSize = '%.2f Gib' % syncSize
+        else:
+            syncSize = '%.2f Mib' % syncSize
+
+        if len(self.filterModel):
+            self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ] (%i/%i) (%s)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), len(self.listStore), syncSize))
+        else:
+            self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ] (%i) (%s)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.listStore), syncSize()))
+        
 
     def searchBar_callback(self, searchBar):
         '''Limit results to those containing 'searchBar'.'''
         self.filterModel.refilter()
-        if len(self.filterModel):
-            self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ] (%i/%i)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), len(self.listStore)))
-        else:
-            self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ] (%s)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.listStore)))
 
     def filterFunc(self, model, row, searchBar):
         '''Return True if searchBarText matches any part of any column in row.'''
