@@ -125,6 +125,16 @@ class musicDB:
         album_id = temp[0][0]
         self.cursor.execute('INSERT INTO file VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', (relpath, statinfo.st_mtime, statinfo.st_size, f.tag().title, artist_id, album_id, genre_id, f.tag().year, True))
 
+    def syncSize(self):
+        '''Return the size, in bytes, of all files marked for sync.'''
+        self.cursor.execute('SELECT relpath, size FROM file WHERE sync = ?', (True,))
+        results = self.cursor.fetchall()
+        total = 0
+        for relpath, size in results:
+            total += size
+            print relpath, size
+        return total
+
     def recurseDir(self, sourceDir, func = updateFile):
         '''Recursively call func() on a relative path.'''
         for root, dirs, files in os.walk(sourceDir):
