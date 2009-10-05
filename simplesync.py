@@ -225,14 +225,18 @@ class dbView:
         sourceDir = self.db.sourceDir()
         targetDir = self.db.targetDir()
         # If we're missing some info, get it!
-        while (not sourceDir or not targetDir) and self.errorDialog('Specify a source and target') and self.editPrefs() == gtk.RESPONSE_OK:
+        while (not sourceDir or not targetDir) and self.editPrefs() == gtk.RESPONSE_OK:
             sourceDir = self.db.sourceDir()
+            if not sourceDir:
+                self.errorDialog('Specify a source') 
             targetDir = self.db.targetDir()
-        print "Sync: %s -> %s" % (sourceDir, targetDir)
+            if not targetDir:
+                self.errorDialog('Specify a target') 
+        print "Sync: %s -> %s (%f Mib)" % (sourceDir, targetDir, self.db.syncSize() / 1024.**2)
         for file in self.db.copyList(sourceDir):
             abspath = os.path.join(sourceDir, file).encode('latin-1')
             target = os.path.join(targetDir,file).encode('latin-1')
-            print abspath, '->', target
+            print target
             if not os.path.isdir(os.path.dirname(target)):
                 os.makedirs(os.path.dirname(target))
             shutil.copy2(abspath, target)
@@ -252,6 +256,7 @@ class dbView:
                 self.db.sourceDir(source)
                 if d.response == gtk.RESPONSE_APPLY:
                     self.db.recurseDir(source, self.db.updateFile)
+                    self.view(self.dbFile)
             target = d.get_Path('Target')
             if target != '':
                 self.db.targetDir(target)
@@ -261,16 +266,15 @@ class dbView:
         '''Returns a musicDB object connected to dbFile.'''
         return simplesync_db.musicDB(dbFile)
 
-    def errorDialog(self, msg = "Error!"):
-        md = gtk.MessageDialog(,
-                               gtk.DIALOG_DESTROY_WITH_PARENT,
-                               gtk.MESSAGE_ERROR, 
-                               gtk.BUTTONS_CLOSE,
-                               msg)
-        md.run()
-        md.destroy()
-        return True
-
+    class errorDialog(gtk.Window):
+        def __init__(self, msg):
+            md = gtk.MessageDialog(self,
+                                   gtk.DIALOG_DESTROY_WITH_PARENT,
+                                   gtk.MESSAGE_ERROR, 
+                                   gtk.BUTTONS_CLOSE,
+                                   msg)
+            md.run()
+            md.destroy()
 
 class dbPrefsdialog(gtk.Window):
     '''Dialog box for setting file paths.'''
