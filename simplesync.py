@@ -71,6 +71,9 @@ class dbView:
         col_cell_toggle.connect('toggled', self.toggle_callback)
         self.tree.append_column(self.syncCol)
         self.tree.set_rules_hint(True)
+        self.tree.connect("row-activated", lambda v, w, x: self.toggle_callback(v, w))
+        self.tree.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
+
 
         # Track window
         self.scroll = gtk.ScrolledWindow()
@@ -236,13 +239,14 @@ class dbView:
         for file in self.db.copyList(sourceDir):
             abspath = os.path.join(sourceDir, file).encode('latin-1')
             target = os.path.join(targetDir,file).encode('latin-1')
-            print target
+            print "Sync: ", file
             if not os.path.isdir(os.path.dirname(target)):
                 os.makedirs(os.path.dirname(target))
             shutil.copy2(abspath, target)
             self.db.updateFile(sourceDir, abspath)
         self.db.connection.commit()
         self.db.mtime(time.time())
+        print "Sync: complete!"
 
     def editPrefs(self):
         d = dbPrefsdialog()

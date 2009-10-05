@@ -51,7 +51,7 @@ class musicDB:
 
     def rebuild(self):
         '''Construct a new empty database.'''
-        print "Rebuilding..."
+        print "Rebuilding...",
 
         # Drop all tables ...
         self.cursor.execute('''SELECT 'DROP TABLE ' || name || ';'
@@ -80,6 +80,7 @@ class musicDB:
         self.cursor.execute('INSERT INTO metadata VALUES (?, ?)', ("db_version", 0.0))
         self.cursor.execute('INSERT INTO metadata VALUES (?, ?)', ("simplesync_version", 0.0))
         self.connection.commit()
+        print 'complete!'
 
     def removeFile(self, sourceDir, abspath):
         '''Remove a file from the database.'''
@@ -92,7 +93,7 @@ class musicDB:
 
     def updateFile(self, sourceDir, abspath):
         '''Update a file in the database.'''
-        print sourceDir, abspath
+        print "Update: ", unicode(os.path.relpath(abspath, sourceDir), 'latin-1')
         self.removeFile(sourceDir, abspath)
         self.addFile(sourceDir, abspath)
 
