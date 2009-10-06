@@ -19,13 +19,14 @@
 #       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #       MA 02110-1301, USA.
 
-import gtk, simplesync_db, time, os, shutil, threading
+import gtk, simplesync_db, time, os, shutil, sys
 
 class dbView:
     '''Main window for viewing simplesync musicDB'''
 
     def __init__(self, dbFile = None):
         self.echo = False
+        self.appPath = os.path.abspath(os.path.dirname(os.path.realpath(sys.argv[0])))
         self.dbFile = dbFile
 
         # Initialize model
@@ -117,6 +118,7 @@ class dbView:
         # Initialize
         self.dbwindow = gtk.Window(gtk.WINDOW_TOPLEVEL)
         self.dbwindow.set_title("SimpleSync")
+        self.dbwindow.set_icon_from_file(os.path.join(self.appPath, 'simplesync.png'))
         self.dbwindow.set_default_size(1000, 400)
         self.dbwindow.connect("destroy", lambda w: gtk.main_quit())
         self.dbwindow.add_accel_group(self.AccelGroup)
@@ -201,6 +203,7 @@ class dbView:
             self.listStore[toggle][6] = not self.listStore[toggle][6]
             fileList.append((self.listStore[toggle][0], self.listStore[toggle][6]))
         self.db.setSync(fileList)
+        self.updateTitle()
         return
 
     def row_callback(self, treeview, row, column):
