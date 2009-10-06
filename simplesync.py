@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-#       filename - desc
+#       simplesync.py
 #
 #       Copyright 2009 John Tyree <johntyree@gmail.com>
 #
@@ -36,8 +36,9 @@ class dbView:
 
         ## Keyboard Accelerators
         self.AccelGroup = gtk.AccelGroup()
-        self.AccelGroup.connect_group(ord('Q'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_LOCKED, lambda w, x, y, z: gtk.main_quit())
         self.AccelGroup.connect_group(ord('P'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_LOCKED, lambda w, x, y, z: self.editPrefs())
+        self.AccelGroup.connect_group(ord('Q'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_LOCKED, lambda w, x, y, z: gtk.main_quit())
+        self.AccelGroup.connect_group(ord('S'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_LOCKED, lambda w, x, y, z: self.toggleSelectedButton_callback(x))
 
         # Track view
         self.tree = gtk.TreeView()
