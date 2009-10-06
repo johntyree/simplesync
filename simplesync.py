@@ -280,7 +280,8 @@ class dbView:
             if os.path.isdir(source):
                 self.db.sourceDir(source)
                 if d.response == gtk.RESPONSE_APPLY:
-                        self.opTime = self.db.recurseDir(source, self.db.updateFile)
+                        self.db.rebuild()
+                        self.opTime = self.db.recurseDir(source, self.db.addFile)
                         self.view(self.dbFile)
             target = d.get_Path('Target')
             if target != '':
