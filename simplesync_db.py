@@ -28,13 +28,14 @@ class musicDB:
 
     def __init__ (self, dbfile):
         '''Initialize a musicDB object connected to <dbfile>.'''
-        print "Connecting to %s" % dbfile
+        self.echo = False
         self.dbfile = dbfile
         isNew = False
+        if self.echo: print "Connecting to %s" % dbfile
         if not os.path.isfile(dbfile):
             isNew = True
             try:
-                print "New DB: ", dbfile
+                if self.echo: print "New DB: ", dbfile
                 os.makedirs(os.path.dirname(dbfile))
             except OSError, e:
                 if not os.path.isdir(os.path.dirname(dbfile)):
@@ -43,7 +44,7 @@ class musicDB:
         self.cursor = self.connection.cursor()
         if isNew:
             self.rebuild()
-        print "Connected"
+        if self.echo: print "Connected"
 
     def mtime(self, time = None):
         '''Return or set the time, in seconds, of the start of the previous sync.'''
@@ -56,7 +57,7 @@ class musicDB:
 
     def rebuild(self):
         '''Construct a new empty database.'''
-        print "Rebuilding...",
+        if self.echo: print "Rebuilding...",
 
         # Drop all tables ...
         self.cursor.execute('''SELECT 'DROP TABLE ' || name || ';'
@@ -85,12 +86,12 @@ class musicDB:
         self.cursor.execute('INSERT INTO metadata VALUES (?, ?)', ("db_version", 0.0))
         self.cursor.execute('INSERT INTO metadata VALUES (?, ?)', ("simplesync_version", 0.0))
         self.connection.commit()
-        print 'complete!'
+        if self.echo: print 'complete!'
 
     def removeFile(self, sourceDir, abspath):
         '''Remove a file from the database.'''
         relpath = os.path.relpath(abspath, sourceDir)
-        print "db.removeFile: ", relpath
+        if self.echo: print "db.removeFile: ", relpath
         try:
             relpath = unicode(relpath, 'latin-1')
         except TypeError:
@@ -99,7 +100,7 @@ class musicDB:
 
     def updateFile(self, sourceDir, abspath):
         '''Update a file in the database.'''
-        print "db.updateFile: ", unicode(os.path.relpath(abspath, sourceDir), 'latin-1')
+        if self.echo: print "db.updateFile: ", unicode(os.path.relpath(abspath, sourceDir), 'latin-1')
         self.removeFile(sourceDir, abspath)
         self.addFile(sourceDir, abspath)
 
@@ -243,7 +244,7 @@ class musicDB:
         The each inner tupple contains the file's relpath and desired sync value.'''
         for relpath, sync in relpathList:
             relpath = unicode(relpath, 'latin-1')
-            print "setSync: %-5s - %s" % (sync, relpath)
+            if self.echo: print "setSync: %-5s - %s" % (sync, relpath)
             self.cursor.execute("UPDATE file SET sync = ? WHERE relpath = ?", (sync, relpath))
         self.connection.commit()
         return

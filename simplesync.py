@@ -25,6 +25,7 @@ class dbView:
     '''Main window for viewing simplesync musicDB'''
 
     def __init__(self, dbFile = None):
+        self.echo = False
         self.dbFile = dbFile
 
         # Initialize model
@@ -173,7 +174,7 @@ class dbView:
             title = ('(%.1fs) %s' % (self.opTime, title))
         except AttributeError:
             pass
-        print title, type(title)
+        if self.echo: print title, type(title)
         self.dbwindow.set_title(title)
         
     def searchBar_callback(self, searchBar):
@@ -190,7 +191,7 @@ class dbView:
     def toggle_callback(self, cell, toggleList):
         '''Toggle sync status of a tuple of files in db.'''
         # Ugly workaround based on coincidence... toggleList must be an iteratable!
-        print "Toggle:", toggleList
+        if self.echo: print "Toggle:", toggleList
         if cell != None:
             toggleList = (toggleList,)
         fileList = []
@@ -234,7 +235,6 @@ class dbView:
     def toggleSelectedButton_callback(self, button):
         '''Toggle sync status of all selected rows.'''
         selectedRows = self.selectedRows()
-        print "Selected rows:", selectedRows
         if selectedRows == []:
             return
         else:
