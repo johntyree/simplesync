@@ -267,6 +267,7 @@ class dbView:
         self.db.connection.commit()
         self.db.mtime(time.time())
         print "Sync: complete!"
+        print "unknownList:", self.db.unknownList(sourceDir)
 
     def editPrefs(self):
         d = dbPrefsdialog()

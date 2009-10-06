@@ -157,6 +157,18 @@ class musicDB:
         print "%.1fs" % (f - s)
         return (f - s)
 
+    def unknownList(self, sourceDir):
+        '''Return a list of files in sourceDir but not in db.'''
+        allList = map(lambda x: x['relpath'], self.allList())
+        unknownList = []
+        for root, dirs, files in os.walk(sourceDir):
+            for name in files:
+                abspath = os.path.join(root, name)
+                relpath = os.path.relpath(abspath, sourceDir)
+                if relpath in allList:
+                    unknownList.append(relpath)
+        return unknownList
+
     def targetDir(self, dir = None):
        if dir:
            self.cursor.execute('INSERT OR REPLACE INTO metadata VALUES (?, ?)', ('targetDir', dir))
