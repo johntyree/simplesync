@@ -244,7 +244,7 @@ class dbView:
             self.toggle_callback(None, selectedRows) 
 
     def syncAllButton_callback(self, button):
-        '''Copy marked files from self.targetDir to self.sourceDir'''
+        '''Copy marked files from self.targetDir to self.db.sourceDir'''
         sourceDir = self.db.sourceDir()
         targetDir = self.db.targetDir()
         # If we're missing some info, get it!
@@ -281,6 +281,7 @@ class dbView:
                 self.db.sourceDir(source)
                 if d.response == gtk.RESPONSE_APPLY:
                         self.db.rebuild()
+                        self.db.sourceDir(source)
                         self.opTime = self.db.recurseDir(source, self.db.addFile)
                         self.view(self.dbFile)
             target = d.get_Path('Target')
