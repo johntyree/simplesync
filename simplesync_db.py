@@ -33,7 +33,12 @@ class musicDB:
         isNew = False
         if not os.path.isfile(dbfile):
             isNew = True
-            print "New db!"
+            try:
+                print "New DB: ", dbfile
+                os.makedirs(os.path.dirname(dbfile))
+            except OSError, e:
+                if not os.path.isdir(os.path.dirname(dbfile)):
+                    print "Failed to create DB: %s" % e.strerror
         self.connection = sqlite.connect(dbfile)
         self.cursor = self.connection.cursor()
         if isNew:
