@@ -83,25 +83,32 @@ class dbView:
         # Search bar
         self.searchBar = gtk.Entry()
         self.searchBar.connect('changed', self.searchBar_callback)
-        self.tooltips.set_tip(self.searchBar, "Enter query")
+        self.tooltips.set_tip(self.searchBar, "Enter query.")
 
         # Toggle Selected button
         self.toggleSelectedButton = gtk.Button()
         self.toggleSelectedButton.set_label("_Toggle")
         self.toggleSelectedButton.connect('clicked', self.toggleSelectedButton_callback)
-        self.tooltips.set_tip(self.toggleSelectedButton, "Toggle sync of all files")
+        self.tooltips.set_tip(self.toggleSelectedButton, "Toggle sync of all files.")
+
+        # Delete Selected button
+        self.deleteSelectedButton = gtk.Button()
+        self.deleteSelectedButton.set_label("_Delete")
+        self.deleteSelectedButton.connect('clicked', self.deleteSelectedButton_callback)
+        self.tooltips.set_tip(self.deleteSelectedButton, "Delete all selected files.")
 
         # Sync button
         self.syncAllButton = gtk.Button('_Sync')
         self.syncAllButton.set_image(gtk.image_new_from_stock(gtk.STOCK_REFRESH, gtk.ICON_SIZE_BUTTON))
         self.syncAllButton.connect('clicked', self.syncAllButton_callback)
-        self.tooltips.set_tip(self.syncAllButton, "Sync active files to device")
+        self.tooltips.set_tip(self.syncAllButton, "Sync active files to device.")
 
         # Window layout
         self.vbox1 = gtk.VBox(False, 0)
         self.hbox1 = gtk.HBox(False, 0)
         self.vbox1.pack_start(self.scroll, True, True, 1)
         self.hbox1.pack_start(self.searchBar, True, True, 1)
+        self.hbox1.pack_start(self.deleteSelectedButton, False, False, 1)
         self.hbox1.pack_start(self.toggleSelectedButton, False, False, 1)
         self.hbox1.pack_start(self.syncAllButton, False, False, 1)
         self.vbox1.pack_start(self.hbox1, False, False, 1)
@@ -202,6 +209,15 @@ class dbView:
         for row in self.tree.get_selection().get_selected_rows()[1:][0]:
             selectedRows.append(row[0])
         return selectedRows
+
+    def deleteSelectedButton_callback(self, button):
+        '''Remove selected rows from the DB.'''
+        for row in self.selectedRows():
+            file = self.filterModel[row][0]
+            print file
+            self.db.removeFile(self.db.sourceDir(), os.path.join(self.db.sourceDir(), file))
+            self.listStore.remove(self.listStore.get_iter(row))
+        self.db.connection.commit()
 
     def column_callback(self, column):
         '''Sort currently viewed tracks by column.'''

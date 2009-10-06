@@ -23,7 +23,6 @@
 from pysqlite2 import dbapi2 as sqlite
 import os, tagpy, time
 
-
 class musicDB:
     '''A database of file information and tag attributes.'''
 
@@ -85,6 +84,7 @@ class musicDB:
     def removeFile(self, sourceDir, abspath):
         '''Remove a file from the database.'''
         relpath = os.path.relpath(abspath, sourceDir)
+        print "db.Remove: ", relpath
         try:
             relpath = unicode(relpath, 'latin-1')
         except TypeError:
