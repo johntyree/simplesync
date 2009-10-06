@@ -152,8 +152,9 @@ class musicDB:
                 abspath = os.path.join(root, name)
                 func(sourceDir, abspath)
         self.connection.commit()
-        self.sourceDir(sourceDir)
-        return True
+        f = time.time()
+        print "%.1fs" % (f - s)
+        return (f - s)
 
     def targetDir(self, dir = None):
        if dir:
