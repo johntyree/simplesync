@@ -158,6 +158,7 @@ class dbView:
     def updateTitle(self):
         '''Update window title.'''
         syncSize = self.db.syncSize() / 1024.**2
+        title = None
         if syncSize > 1024:
             syncSize /= 1024.0
             syncSize = '%.2f Gib' % syncSize
@@ -165,9 +166,15 @@ class dbView:
             syncSize = '%.2f Mib' % syncSize
 
         if len(self.filterModel):
-            self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ] (%i/%i) (%s)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), len(self.listStore), syncSize))
+            title = ('SimpleSync - %s: [ %s -> %s ] (%i/%i) (%s)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), len(self.listStore), syncSize))
         else:
-            self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ] (%i) (%s)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), syncSize))
+            title = ('SimpleSync - %s: [ %s -> %s ] (%i) (%s)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), syncSize))
+        try:
+            title = ('(%.1fs) %s' % (self.opTime, title))
+        except AttributeError:
+            pass
+        print title, type(title)
+        self.dbwindow.set_title(title)
         
     def searchBar_callback(self, searchBar):
         '''Limit results to those containing 'searchBar'.'''
@@ -214,14 +221,13 @@ class dbView:
         '''Remove selected rows from the DB.'''
         for row in self.selectedRows():
             file = self.filterModel[row][0]
-            print file
+            print "Remove:", file
             self.db.removeFile(self.db.sourceDir(), os.path.join(self.db.sourceDir(), file))
             self.listStore.remove(self.listStore.get_iter(row))
         self.db.connection.commit()
 
     def column_callback(self, column):
         '''Sort currently viewed tracks by column.'''
-        print column.get_sort_column_id()
         print "Sort by %s." % column.get_title()
         return
 
@@ -283,6 +289,7 @@ class dbView:
         return simplesync_db.musicDB(dbFile)
 
     class errorDialog(gtk.Window):
+        '''Pop-up an error displaying msg.'''
         def __init__(self, msg):
             md = gtk.MessageDialog(self,
                                    gtk.DIALOG_DESTROY_WITH_PARENT,
@@ -376,6 +383,7 @@ class dbPrefsdialog(gtk.Window):
                 return
         finally:
             dialog.destroy()
+
 
 def main():
     #print db.allList()

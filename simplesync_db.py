@@ -43,6 +43,7 @@ class musicDB:
         self.cursor = self.connection.cursor()
         if isNew:
             self.rebuild()
+        print "Connected"
 
     def mtime(self, time = None):
         '''Return or set the time, in seconds, of the start of the previous sync.'''
@@ -89,7 +90,7 @@ class musicDB:
     def removeFile(self, sourceDir, abspath):
         '''Remove a file from the database.'''
         relpath = os.path.relpath(abspath, sourceDir)
-        print "db.Remove: ", relpath
+        print "db.removeFile: ", relpath
         try:
             relpath = unicode(relpath, 'latin-1')
         except TypeError:
@@ -98,7 +99,7 @@ class musicDB:
 
     def updateFile(self, sourceDir, abspath):
         '''Update a file in the database.'''
-        print "Update: ", unicode(os.path.relpath(abspath, sourceDir), 'latin-1')
+        print "db.updateFile: ", unicode(os.path.relpath(abspath, sourceDir), 'latin-1')
         self.removeFile(sourceDir, abspath)
         self.addFile(sourceDir, abspath)
 
@@ -138,11 +139,11 @@ class musicDB:
         total = 0
         for relpath, size in results:
             total += size
-            print relpath, size
         return total
 
     def recurseDir(self, sourceDir, func = updateFile):
         '''Recursively call func() on a relative path.'''
+        s = time.time()
         for root, dirs, files in os.walk(sourceDir):
             print root
             for name in files:
@@ -241,18 +242,15 @@ class musicDB:
         The each inner tupple contains the file's relpath and desired sync value.'''
         for relpath, sync in relpathList:
             relpath = unicode(relpath, 'latin-1')
-            print relpath
-            #print "Toggled %s to %s" % (relpath, sync)
+            print "setSync: %-5s - %s" % (sync, relpath)
             self.cursor.execute("UPDATE file SET sync = ? WHERE relpath = ?", (sync, relpath))
         self.connection.commit()
         return
 
 def main():
     db = musicDB(":memory:")
-    sourceDir = "/media/disk/Music/R"
+    sourceDir = "/media/disk/Music/S"
     db.rebuild()
-    s = time.time()
     db.recurseDir(sourceDir, db.addFile)
-    print time.time() - s
 
 if __name__ == "__main__": main()
