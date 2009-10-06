@@ -71,9 +71,8 @@ class dbView:
         col_cell_toggle.connect('toggled', self.toggle_callback)
         self.tree.append_column(self.syncCol)
         self.tree.set_rules_hint(True)
-        self.tree.connect("row-activated", lambda v, w, x: self.toggle_callback(v, w))
+        self.tree.connect("row-activated", self.row_callback)
         self.tree.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
-
 
         # Track window
         self.scroll = gtk.ScrolledWindow()
@@ -85,17 +84,11 @@ class dbView:
         self.searchBar.connect('changed', self.searchBar_callback)
         self.tooltips.set_tip(self.searchBar, "Enter query")
 
-        # Toggle-all button
-        self.toggleAllButton = gtk.Button()
-        self.toggleAllButton.set_label("_Toggle")
-        self.toggleAllButton.connect('clicked', self.toggleAllButton_callback)
-        self.tooltips.set_tip(self.toggleAllButton, "Toggle sync of all files")
-
-        # Set all button
-        self.setAllButton = gtk.Button()
-        self.setAllButton.set_label("Set _all")
-        self.setAllButton.connect('clicked', self.setAllButton_callback)
-        self.tooltips.set_tip(self.setAllButton, "Enable or disable sync of all files")
+        # Toggle Selected button
+        self.toggleSelectedButton = gtk.Button()
+        self.toggleSelectedButton.set_label("_Toggle")
+        self.toggleSelectedButton.connect('clicked', self.toggleSelectedButton_callback)
+        self.tooltips.set_tip(self.toggleSelectedButton, "Toggle sync of all files")
 
         # Sync button
         self.syncAllButton = gtk.Button('_Sync')
@@ -108,8 +101,7 @@ class dbView:
         self.hbox1 = gtk.HBox(False, 0)
         self.vbox1.pack_start(self.scroll, True, True, 1)
         self.hbox1.pack_start(self.searchBar, True, True, 1)
-        self.hbox1.pack_start(self.setAllButton, False, False, 1)
-        self.hbox1.pack_start(self.toggleAllButton, False, False, 1)
+        self.hbox1.pack_start(self.toggleSelectedButton, False, False, 1)
         self.hbox1.pack_start(self.syncAllButton, False, False, 1)
         self.vbox1.pack_start(self.hbox1, False, False, 1)
 
@@ -169,7 +161,6 @@ class dbView:
         else:
             self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ] (%i) (%s)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.listStore), syncSize()))
         
-
     def searchBar_callback(self, searchBar):
         '''Limit results to those containing 'searchBar'.'''
         self.filterModel.refilter()
@@ -184,9 +175,9 @@ class dbView:
     def toggle_callback(self, cell, toggleList):
         '''Toggle sync status of a tuple of files in db.'''
         # Ugly workaround based on coincidence... toggleList must be an iteratable!
+        print "Toggle:", toggleList
         if cell != None:
             toggleList = (toggleList,)
-        print toggleList[0]
         fileList = []
         # Build list of files to set.
         for toggle in toggleList:
@@ -196,32 +187,35 @@ class dbView:
         self.db.setSync(fileList)
         return
 
+    def row_callback(self, treeview, row, column):
+        '''Call toggle_callback on a row.'''
+        selectedRows = self.selectedRows()
+        if selectedRows == []:
+            self.toggle_callback(True, row)
+        else:
+            self.toggle_callback(None, selectedRows) 
+
+    def selectedRows(self):
+        '''Return list of selected rows by number.'''
+        selectedRows = []
+        for row in self.tree.get_selection().get_selected_rows()[1:][0]:
+            selectedRows.append(row[0])
+        return selectedRows
+
     def column_callback(self, column):
-        '''Sort currently viewed tracks by column'''
+        '''Sort currently viewed tracks by column.'''
         print column.get_sort_column_id()
         print "Sort by %s." % column.get_title()
         return
 
-    def toggleAllButton_callback(self, button):
-        '''Toggle sync status of all visible files'''
-        fileList = []
-        # Build list of files to toggle.
-        for i, row in enumerate(self.filterModel):
-            fileList.append(i)
-        # Toggle them all at once
-        self.toggle_callback(None, fileList)
-        return
-
-    def setAllButton_callback(self, button):
-        '''Set or unset sync status of all visible files'''
-        fileList = []
-        self.allToggle = not self.allToggle
-        for i, row in enumerate(self.filterModel):
-            childPath = self.filterModel.convert_path_to_child_path(i)
-            self.listStore[childPath][6] = self.allToggle
-            fileList.append((self.listStore[childPath][0], self.allToggle))
-        self.db.setSync(fileList)
-        return
+    def toggleSelectedButton_callback(self, button):
+        '''Toggle sync status of all selected rows.'''
+        selectedRows = self.selectedRows()
+        print "Selected rows:", selectedRows
+        if selectedRows == []:
+            return
+        else:
+            self.toggle_callback(None, selectedRows) 
 
     def syncAllButton_callback(self, button):
         '''Copy marked files from self.targetDir to self.sourceDir'''
