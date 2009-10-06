@@ -294,9 +294,13 @@ class dbView:
 class dbPrefsdialog(gtk.Window):
     '''Dialog box for setting file paths.'''
     def __init__(self):
-        self.dialog = gtk.Dialog("File Prefs", self, 0, (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
-                                                         gtk.STOCK_OK, gtk.RESPONSE_OK))
-        self.dialog.add_button(gtk.STOCK_SAVE_AS, gtk.RESPONSE_APPLY).set_label('Import')
+        self.dialog = gtk.Dialog("File Prefs", self, 0)
+        importButton = self.dialog.add_button(gtk.STOCK_SAVE_AS, gtk.RESPONSE_APPLY)
+        importButton.set_label('_Import')
+        importButton.set_image(gtk.image_new_from_stock('gtk-save-as', gtk.ICON_SIZE_BUTTON))
+        cancelButton = self.dialog.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
+        okButton = self.dialog.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
+        self.dialog.action_area.set_layout(gtk.BUTTONBOX_EDGE)
         vbox = gtk.VBox(False, 8)
         vbox.set_border_width(8)
         self.fileEntryGroups = {}
@@ -332,7 +336,7 @@ class dbPrefsdialog(gtk.Window):
             entry.set_text(file)
 
     def get_Path(self, name):
-        return self.fileEntryGroups[name].get_text()
+        return os.path.expanduser(self.fileEntryGroups[name].get_text())
 
     def selectFile(self, isFolder):
         '''Return selected file.'''
