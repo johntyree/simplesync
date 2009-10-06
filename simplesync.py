@@ -167,7 +167,7 @@ class dbView:
         if len(self.filterModel):
             self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ] (%i/%i) (%s)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), len(self.listStore), syncSize))
         else:
-            self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ] (%i) (%s)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.listStore), syncSize()))
+            self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ] (%i) (%s)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), syncSize))
         
     def searchBar_callback(self, searchBar):
         '''Limit results to those containing 'searchBar'.'''
