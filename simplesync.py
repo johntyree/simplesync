@@ -19,7 +19,7 @@
 #       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #       MA 02110-1301, USA.
 
-import gtk, simplesync_db, time, os, shutil
+import gtk, simplesync_db, time, os, shutil, threading
 
 class dbView:
     '''Main window for viewing simplesync musicDB'''
@@ -264,14 +264,15 @@ class dbView:
         if d.response == gtk.RESPONSE_OK or d.response == gtk.RESPONSE_APPLY:
             dbFile = d.get_Path('DB File')
             if dbFile:
+                'editPrefs: got dbFile'
                 self.dbFile = dbFile
                 self.view(dbFile)
             source = d.get_Path('Source')
             if os.path.isdir(source):
                 self.db.sourceDir(source)
                 if d.response == gtk.RESPONSE_APPLY:
-                    self.db.recurseDir(source, self.db.updateFile)
-                    self.view(self.dbFile)
+                        self.opTime = self.db.recurseDir(source, self.db.updateFile)
+                        self.view(self.dbFile)
             target = d.get_Path('Target')
             if target != '':
                 self.db.targetDir(target)
@@ -290,6 +291,22 @@ class dbView:
                                    msg)
             md.run()
             md.destroy()
+
+'''    class threadDBImport(threading.Thread):
+        def __init__(self, parent, sourceDir):
+            print 'Thread: init'
+            self.parent = parent
+            self.sourceDir = sourceDir
+            threading.Thread.__init__(self)
+            print 'Thread: end init'
+        def run(self):
+            print 'Thread: start'
+            #self.parent.db.connection.interrupt()
+            db = simplesync_db.musicDB('/tmp/ss3.db')
+            db.recurseDir(self.sourceDir, db.updateFile)
+            #self.parent.view(self.parent.dbFile)
+            print 'Thread: end'
+'''
 
 class dbPrefsdialog(gtk.Window):
     '''Dialog box for setting file paths.'''
