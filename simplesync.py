@@ -248,7 +248,11 @@ class dbView:
         sourceDir = self.db.sourceDir()
         targetDir = self.db.targetDir()
         # If we're missing some info, get it!
-        while (not sourceDir or not targetDir) and self.editPrefs() == gtk.RESPONSE_OK:
+        while (not sourceDir or not targetDir) :
+            r = self.editPrefs()
+            if r != gtk.RESPONSE_OK and r != gtk.RESPONSE_APPLY:
+                print "Sync: Preferences Aborted."
+                return
             sourceDir = self.db.sourceDir()
             if not sourceDir:
                 self.errorDialog('Specify a source') 
@@ -281,13 +285,12 @@ class dbView:
             if os.path.isdir(source):
                 self.db.sourceDir(source)
                 if d.response == gtk.RESPONSE_APPLY:
-                        self.db.rebuild()
-                        self.db.sourceDir(source)
-                        self.opTime = self.db.recurseDir(source, self.db.addFile)
+                        self.opTime = self.db.importDir(source)
                         self.view(self.dbFile)
             target = d.get_Path('Target')
             if target != '':
                 self.db.targetDir(target)
+                self.updateTitle()
         return d.response
 
     def openDB(self, dbFile):
