@@ -19,7 +19,7 @@
 #       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #       MA 02110-1301, USA.
 
-import gtk, simplesync_db, time, os, shutil, sys
+import gtk, simplesync_db, time, os, shutil, sys, statvfs
 
 class dbView:
     '''Main window for viewing simplesync musicDB'''
@@ -161,17 +161,17 @@ class dbView:
     def updateTitle(self):
         '''Update window title.'''
         syncSize = self.db.syncSize() / 1024.**2
+        targetSize = totalSpace(self.db.targetDir()) / 1024.**2
+        unit = 'Mib'
         title = None
-        if syncSize > 1024:
+        if syncSize > 1024 or targetSize > 1024:
             syncSize /= 1024.0
-            syncSize = '%.2f Gib' % syncSize
-        else:
-            syncSize = '%.2f Mib' % syncSize
-
+            targetSize /= 1024.0
+            unit = 'Gib'
         if len(self.filterModel):
-            title = ('SimpleSync - %s: [ %s -> %s ] (%i/%i) (%s)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), len(self.listStore), syncSize))
+            title = ('SimpleSync - %s: [ %s -> %s ] (%i/%i) (%.2f / %.2f %s %2i%%)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), len(self.listStore), syncSize, targetSize, unit, (syncSize / targetSize) * 100))
         else:
-            title = ('SimpleSync - %s: [ %s -> %s ] (%i) (%s)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), syncSize))
+            title = ('SimpleSync - %s: [ %s -> %s ] (%i) (%.2f / %.2f %s %i%%)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), syncSize, targetSize, unit, (syncSize / targetSize) * 100))
         try:
             title = ('(%.1fs) %s' % (self.opTime, title))
         except AttributeError:
@@ -259,6 +259,12 @@ class dbView:
             targetDir = self.db.targetDir()
             if not targetDir:
                 self.errorDialog('Specify a target') 
+
+        # Cancel if not enough free space
+        if freeSpace(targetDir) <= self.db.syncSize():
+            self.errorDialog("Not enough free space on device.")
+            return
+
         print "Sync: %s -> %s (%f Mib)" % (sourceDir, targetDir, self.db.syncSize() / 1024.**2)
         for file in self.db.copyList(sourceDir):
             abspath = os.path.join(sourceDir, file).encode('latin-1')
@@ -394,6 +400,20 @@ class dbPrefsdialog(gtk.Window):
         finally:
             dialog.destroy()
 
+def freeSpace(path):
+    try:
+        f = os.statvfs(path)
+        # free blocks * block size = bytes
+        return f[statvfs.F_FRSIZE] * f[statvfs.F_BAVAIL]
+    except OSError, e:
+        return 0
+def totalSpace(path):
+    try:
+        f = os.statvfs(path)
+        # free blocks * block size = bytes
+        return f[statvfs.F_FRSIZE] * f[statvfs.F_BLOCKS]
+    except OSError, e:
+        return 0
 
 def main():
     #print db.allList()
