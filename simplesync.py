@@ -328,6 +328,7 @@ class dbPrefsdialog(gtk.Window):
     '''Dialog box for setting file paths.'''
     def __init__(self):
         self.dialog = gtk.Dialog("File Prefs", self, 0)
+        self.dialog.set_default_response(gtk.RESPONSE_CANCEL)
         importButton = self.dialog.add_button(gtk.STOCK_SAVE_AS, gtk.RESPONSE_APPLY)
         importButton.set_label('_Import')
         importButton.set_image(gtk.image_new_from_stock('gtk-save-as', gtk.ICON_SIZE_BUTTON))

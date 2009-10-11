@@ -171,7 +171,7 @@ class musicDB:
             for name in files:
                 abspath = os.path.join(root, name)
                 relpath = os.path.relpath(abspath, sourceDir)
-                if relpath in allList:
+                if relpath not in allList:
                     unknownList.append(relpath)
         return unknownList
 
