@@ -19,7 +19,7 @@
 #       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #       MA 02110-1301, USA.
 
-import gtk, simplesync_db, time, os, shutil, sys, statvfs
+import gtk, simplesync_db, time, os, shutil, sys, statvfs, subprocess
 
 class dbView:
     '''Main window for viewing simplesync musicDB'''
@@ -38,7 +38,8 @@ class dbView:
 
         ## Keyboard Accelerators
         self.AccelGroup = gtk.AccelGroup()
-        self.AccelGroup.connect_group(ord('P'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_LOCKED, lambda w, x, y, z: self.editPrefs())
+        self.AccelGroup.connect_group(ord('O'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_LOCKED, lambda w, x, y, z: self.editPrefs())
+        self.AccelGroup.connect_group(ord('P'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_LOCKED, lambda w, x, y, z: self.playTrackFromColumn())
         self.AccelGroup.connect_group(ord('Q'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_LOCKED, lambda w, x, y, z: gtk.main_quit())
         self.AccelGroup.connect_group(ord('S'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_LOCKED, lambda w, x, y, z: self.toggleSelectedButton_callback(x))
 
@@ -168,17 +169,21 @@ class dbView:
             syncSize /= 1024.0
             targetSize /= 1024.0
             unit = 'Gib'
+        try:
+            percent = (syncSize / targetSize) * 100
+        except ZeroDevisionError:
+            percent = 0
         if len(self.filterModel):
-            title = ('SimpleSync - %s: [ %s -> %s ] (%i/%i) (%.2f / %.2f %s %2i%%)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), len(self.listStore), syncSize, targetSize, unit, (syncSize / targetSize) * 100))
+            title = ('SimpleSync - %s: [ %s -> %s ] (%i/%i) (%.2f / %.2f %s %2i%%)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), len(self.listStore), syncSize, targetSize, unit, percent))
         else:
-            title = ('SimpleSync - %s: [ %s -> %s ] (%i) (%.2f / %.2f %s %i%%)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), syncSize, targetSize, unit, (syncSize / targetSize) * 100))
+            title = ('SimpleSync - %s: [ %s -> %s ] (%i) (%.2f / %.2f %s %i%%)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), syncSize, targetSize, unit, percent))
         try:
             title = ('(%.1fs) %s' % (self.opTime, title))
         except AttributeError:
             pass
         if self.echo: print title, type(title)
         self.dbwindow.set_title(title)
-        
+
     def searchBar_callback(self, searchBar):
         '''Limit results to those containing 'searchBar'.'''
         self.filterModel.refilter()
@@ -212,7 +217,7 @@ class dbView:
         if selectedRows == []:
             self.toggle_callback(True, row)
         else:
-            self.toggle_callback(None, selectedRows) 
+            self.toggle_callback(None, selectedRows)
 
     def selectedRows(self):
         '''Return list of selected rows by number.'''
@@ -241,24 +246,24 @@ class dbView:
         if selectedRows == []:
             return
         else:
-            self.toggle_callback(None, selectedRows) 
+            self.toggle_callback(None, selectedRows)
 
     def syncAllButton_callback(self, button):
         '''Copy marked files from self.targetDir to self.db.sourceDir'''
         sourceDir = self.db.sourceDir()
         targetDir = self.db.targetDir()
         # If we're missing some info, get it!
-        while (not sourceDir or not targetDir) :
+        while (not sourceDir or not targetDir):
             r = self.editPrefs()
             if r != gtk.RESPONSE_OK and r != gtk.RESPONSE_APPLY:
                 print "Sync: Preferences Aborted."
                 return
             sourceDir = self.db.sourceDir()
             if not sourceDir:
-                self.errorDialog('Specify a source') 
+                self.errorDialog('Specify a source')
             targetDir = self.db.targetDir()
             if not targetDir:
-                self.errorDialog('Specify a target') 
+                self.errorDialog('Specify a target')
 
         # Cancel if not enough free space
         if freeSpace(targetDir) <= self.db.syncSize():
@@ -278,6 +283,17 @@ class dbView:
         self.db.mtime(time.time())
         print "Sync: complete!"
         print "unknownList:", self.db.unknownList(sourceDir)
+
+    def playTrackFromColumn(self):
+        r = self.selectedRows()
+        cmd = ['xmms']
+        if len(r):
+            for row in r:
+                relpath = self.filterModel[row][0]
+                file = os.path.join(self.db.sourceDir(), relpath)
+                cmd.append(file)
+            subprocess.Popen(cmd)
+        return
 
     def editPrefs(self):
         d = dbPrefsdialog()
@@ -308,7 +324,7 @@ class dbView:
         def __init__(self, msg):
             md = gtk.MessageDialog(self,
                                    gtk.DIALOG_DESTROY_WITH_PARENT,
-                                   gtk.MESSAGE_ERROR, 
+                                   gtk.MESSAGE_ERROR,
                                    gtk.BUTTONS_CLOSE,
                                    msg)
             md.run()
