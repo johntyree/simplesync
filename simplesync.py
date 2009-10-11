@@ -430,10 +430,12 @@ def totalSpace(path):
         return f[statvfs.F_FRSIZE] * f[statvfs.F_BLOCKS]
     except OSError, e:
         return 0
+    except TypeError, e:
+        return 0
 
 def main():
     #print db.allList()
-    window = dbView('/tmp/ss2.db')
+    window = dbView('/home/john/.simplesync/ipod.db')
     #window.db.importDir("/media/disk/Music/0-9")
     #window.view('/tmp/ss2.db')
     #window.view('/tmp/simplesync.db')
