@@ -142,8 +142,14 @@ class musicDB:
             total += size
         return total
 
-    def recurseDir(self, sourceDir, func = updateFile):
-        '''Recursively call func() on a relative path.'''
+    def importDir(self, sourceDir):
+        '''Recursively import sourceDir into db.'''
+        target = self.targetDir()
+        print "old:", target
+        self.rebuild()
+        self.targetDir(target)
+        print "new:", self.targetDir()
+        self.sourceDir(sourceDir)
         s = time.time()
         for root, dirs, files in os.walk(sourceDir):
             print root
@@ -151,7 +157,7 @@ class musicDB:
                 if not '.mp3' in name[-4:]:
                     continue
                 abspath = os.path.join(root, name)
-                func(sourceDir, abspath)
+                self.addFile(sourceDir, abspath)
         self.connection.commit()
         f = time.time()
         print "%.1fs" % (f - s)

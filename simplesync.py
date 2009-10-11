@@ -319,7 +319,7 @@ class dbView:
             print 'Thread: start'
             #self.parent.db.connection.interrupt()
             db = simplesync_db.musicDB('/tmp/ss3.db')
-            db.recurseDir(self.sourceDir, db.updateFile)
+            db.importDir(self.sourceDir)
             #self.parent.view(self.parent.dbFile)
             print 'Thread: end'
 '''
@@ -397,7 +397,7 @@ class dbPrefsdialog(gtk.Window):
 def main():
     #print db.allList()
     window = dbView('/tmp/ss2.db')
-    #window.db.recurseDir("/media/disk/Music/0-9", window.db.updateFile)
+    #window.db.importDir("/media/disk/Music/0-9")
     #window.view('/tmp/ss2.db')
     #window.view('/tmp/simplesync.db')
     gtk.main()
