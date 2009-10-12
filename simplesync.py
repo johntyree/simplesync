@@ -423,6 +423,9 @@ def freeSpace(path):
         return f[statvfs.F_FRSIZE] * f[statvfs.F_BAVAIL]
     except OSError, e:
         return 0
+    except TypeError, e:
+        return 0
+
 def totalSpace(path):
     try:
         f = os.statvfs(path)
