@@ -93,14 +93,14 @@ class musicDB:
         relpath = os.path.relpath(abspath, sourceDir)
         if self.echo: print "db.removeFile: ", relpath
         try:
-            relpath = unicode(relpath, 'latin-1')
+            relpath = unicode(relpath, 'utf-8')
         except TypeError:
             pass
         self.cursor.execute('DELETE FROM file WHERE relpath = ?', (relpath,))
 
     def updateFile(self, sourceDir, abspath):
         '''Update a file in the database.'''
-        if self.echo: print "db.updateFile: ", unicode(os.path.relpath(abspath, sourceDir), 'latin-1')
+        if self.echo: print "db.updateFile: ", unicode(os.path.relpath(abspath, sourceDir), 'utf-8')
         self.removeFile(sourceDir, abspath)
         self.addFile(sourceDir, abspath)
 
@@ -108,7 +108,8 @@ class musicDB:
         '''Add a file and its tag information to the database.'''
         statinfo = os.stat(abspath)
         f = tagpy.FileRef(abspath)
-        relpath = unicode(os.path.relpath(abspath, sourceDir), 'latin-1')
+        relpath = unicode(os.path.relpath(abspath, sourceDir), 'utf-8')
+        print (relpath,len(relpath))
         # One for each field...
         self.cursor.execute('SELECT id FROM artist WHERE name = ?', (f.tag().artist,))
         temp = self.cursor.fetchall()
@@ -156,7 +157,10 @@ class musicDB:
             for name in files:
                 if not '.mp3' in name[-4:]:
                     continue
-                abspath = os.path.join(root, name)
+                temp = os.path.join(root, name) # Some c++ error without this temp
+                abspath = temp.decode('utf-8')
+                print (abspath, len(abspath))
+                abspath = temp
                 self.addFile(sourceDir, abspath)
         self.connection.commit()
         f = time.time()
