@@ -177,7 +177,7 @@ class dbView:
             unit = 'Gib'
         try:
             percent = (syncSize / targetSize) * 100
-        except ZeroDevisionError:
+        except ZeroDivisionError:
             percent = 0
         if len(self.filterModel):
             title = ('SimpleSync - %s: [ %s -> %s ] (%i/%i) (%.2f / %.2f %s %2i%%)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), len(self.listStore), syncSize, targetSize, unit, percent))

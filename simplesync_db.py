@@ -263,18 +263,37 @@ class musicDB:
 
     def setSync(self, relpathList):
         '''Sets the sync value of each of a tuple of a tuple of files in the db.
-        The each inner tupple contains the file's relpath and desired sync value.'''
+        Each inner tuple contains the file's relpath and desired sync value.'''
         for relpath, sync in relpathList:
-            relpath = unicode(relpath, 'latin-1')
-            if self.echo: print "setSync: %-5s - %s" % (sync, relpath)
+            relpath = unicode(relpath, 'utf-8')
             self.cursor.execute("UPDATE file SET sync = ? WHERE relpath = ?", (sync, relpath))
+            if self.echo:
+                self.cursor.execute("SELECT sync FROM file where relpath = ?", (relpath,))
+                try:
+                    if self.cursor.fetchall()[0][0] == sync:
+                        print "OK",
+                    else:
+                        print "Failed!",
+                except IndexError:
+                    print "File not found in DB.",
+                print "setSync: %-5s - %s" % (sync, relpath.encode('utf-8'))
         self.connection.commit()
         return
+
+    def dumpFlatFile(self, outfile):
+        import codecs
+        out = codecs.open(outfile, "w", "utf-8")
+        self.cursor.execute("SELECT relpath, sync FROM file")
+        for relpath, sync in self.cursor.fetchall():
+            #print relpath, sync
+            print >> out, sync, relpath
+
 
 def main():
     db = musicDB(":memory:")
     sourceDir = "/media/disk/Music/S"
     db.rebuild()
-    db.recurseDir(sourceDir, db.addFile)
+    db.importDir(sourceDir)
+    #db.dumpFlatFile("/tmp/dbdump")
 
 if __name__ == "__main__": main()
