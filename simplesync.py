@@ -193,6 +193,7 @@ class dbView:
     def searchBar_callback(self, searchBar):
         '''Limit results to those containing 'searchBar'.'''
         self.filterModel.refilter()
+        self.updateTitle()
 
     def filterFunc(self, model, row, searchBar):
         '''Return True if searchBarText matches any part of any column in row.'''
