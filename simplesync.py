@@ -21,6 +21,8 @@
 
 import gtk, simplesync_db, time, os, shutil, sys, statvfs, subprocess
 
+CONFIG_DIR = os.path.expanduser("~/.simplesync/")
+
 class dbView:
     '''Main window for viewing simplesync musicDB'''
 
@@ -396,7 +398,11 @@ class dbPrefsdialog(gtk.Window):
             entry.set_text(file)
 
     def get_Path(self, name):
-        return os.path.expanduser(self.fileEntryGroups[name].get_text())
+        path = self.fileEntryGroups[name].get_text()
+        path = os.path.expanduser(path)
+        if not os.path.isabs(path): path = CONFIG_DIR + path
+        return path
+
 
     def selectFile(self, isFolder):
         '''Return selected file.'''
@@ -442,7 +448,8 @@ def totalSpace(path):
 
 def main():
     #print db.allList()
-    window = dbView('/home/john/.simplesync/ipod.db')
+    window = dbView(CONFIG_DIR + 'ipod.db')
+    window.db.dumpFlatFile(CONFIG_DIR + "ipodDump")
     #window.db.importDir("/media/disk/Music/0-9")
     #window.view('/tmp/ss2.db')
     #window.view('/tmp/simplesync.db')
