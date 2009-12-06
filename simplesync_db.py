@@ -19,16 +19,19 @@
 #       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #       MA 02110-1301, USA.
 
+# Currently trying to figure out why import and unknownList don't 
+# use the same encodings, even with identical code...
+
 
 from pysqlite2 import dbapi2 as sqlite
-import os, tagpy, time
+import os, tagpy, time, bz2
 
 class musicDB:
     '''A database of file information and tag attributes.'''
 
     def __init__ (self, dbfile):
         '''Initialize a musicDB object connected to <dbfile>.'''
-        self.echo = False
+        self.echo = True
         self.dbfile = dbfile
         isNew = False
         if self.echo: print "Connecting to %s" % dbfile
@@ -36,7 +39,7 @@ class musicDB:
             isNew = True
             try:
                 if self.echo: print "New DB: ", dbfile
-                os.makedirs(os.path.dirname(dbfile))
+                if dbfile != ":memory:": os.makedirs(os.path.dirname(dbfile))
             except OSError, e:
                 if not os.path.isdir(os.path.dirname(dbfile)):
                     print "Failed to create DB: %s" % e.strerror
@@ -147,7 +150,10 @@ class musicDB:
     def importDir(self, sourceDir):
         '''Recursively import sourceDir into db.'''
         target = self.targetDir()
-        print "old:", target
+        file = ''
+        if CONFIG_DIR is not None: 
+            file = os.path.join(CONFIG_DIR, self.dbfile + '.' + str(int(time.time())))
+            self.dumpFlatFile(file)
         self.rebuild()
         self.targetDir(target)
         print "new:", self.targetDir()
@@ -164,13 +170,17 @@ class musicDB:
                 abspath = temp
                 self.addFile(sourceDir, abspath)
         self.connection.commit()
+        if CONFIG_DIR is not None:
+            self.loadFlatFile(file)
+            os.unlink(file)
         f = time.time()
         print "%.1fs" % (f - s)
         return (f - s)
 
     def unknownList(self, sourceDir):
         '''Return a list of files in sourceDir but not in db.'''
-        allList = map(lambda x: x['relpath'], self.allList())
+        # Get list of all relpaths
+        trackList = self.trackList()
         unknownList = []
         for root, dirs, files in os.walk(sourceDir):
             for name in files:
@@ -282,7 +292,7 @@ class musicDB:
         return
 
     def dumpFlatFile(self, outfile):
-        out = codecs.open(outfile, "w", "utf-8")
+        out = bz2.BZFile(outfile, "w")
         self.cursor.execute("SELECT relpath, sync FROM file")
         for relpath, sync in self.cursor.fetchall():
             #print relpath, sync
@@ -290,7 +300,7 @@ class musicDB:
         out.close()
 
     def loadFlatFile(self, infile):
-        inf = codecs.open(infile, 'rb', 'utf-8')
+        inf = bz2.BZ2File(infile, 'rb')
         tracks = self.trackList()
         syncUpdates = []
         for line in inf:
@@ -302,7 +312,6 @@ class musicDB:
         inf.close()
         self.setSync(syncUpdates)
         list = set((x[0] for x in syncUpdates)) - set(tracks)
-        import bz2
         if bool(list):
             out = bz2.BZ2File(infile + "-MISSING.bz2", "w")
             for x in list:
