@@ -143,8 +143,8 @@ class musicDB:
         for relpath, size in results:
             total += size
         return total
-    
-    def fileList(self, sourceDir): 
+
+    def fileList(self, sourceDir):
         '''Return a list of all mp3 files below sourceDir.'''
         list = []
         for root, dirs, files in os.walk(sourceDir.decode('utf-8')): # Now a unicode object
@@ -163,7 +163,7 @@ class musicDB:
         '''Recursively import sourceDir into db.'''
         target = self.targetDir()
         file = ''
-        if CONFIG_DIR is not None: 
+        if CONFIG_DIR is not None:
             file = os.path.join(CONFIG_DIR, self.dbfile + '.' + str(int(time.time())))
             self.dumpFlatFile(file)
         self.rebuild()

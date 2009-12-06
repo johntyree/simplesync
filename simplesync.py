@@ -27,7 +27,7 @@ class dbView:
     '''Main window for viewing simplesync musicDB'''
 
     def __init__(self, dbFile = None):
-        self.echo = False
+        self.echo = True
         self.appPath = os.path.abspath(os.path.dirname(os.path.realpath(sys.argv[0])))
         self.dbFile = dbFile
 
@@ -293,7 +293,8 @@ class dbView:
         self.db.connection.commit()
         self.db.mtime(time.time())
         print "Sync: complete!"
-        print "unknownList:", self.db.unknownList(sourceDir)
+        unknown = self.db.unknownList(sourceDir),
+        print "unknownList:", unknown
 
     def playTrackFromColumn(self):
         r = self.selectedRows()
@@ -452,8 +453,8 @@ def totalSpace(path):
 
 def main():
     #print db.allList()
-    window = dbView(CONFIG_DIR + 'ipod.db')
-    window.db.dumpFlatFile(CONFIG_DIR + "ipodDump")
+    window = dbView(CONFIG_DIR + 'test.db')
+    #window.db.dumpFlatFile(CONFIG_DIR + "ipodDump")
     #window.db.importDir("/media/disk/Music/0-9")
     #window.view('/tmp/ss2.db')
     #window.view('/tmp/simplesync.db')
