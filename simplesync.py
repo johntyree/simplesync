@@ -213,7 +213,9 @@ class dbView:
         for toggle in toggleList:
             toggle = self.filterModel.convert_path_to_child_path(toggle)
             self.listStore[toggle][6] = not self.listStore[toggle][6]
-            fileList.append((self.listStore[toggle][0], self.listStore[toggle][6]))
+            # listStore returns a utf-8 string, we must decode it
+            fileList.append((self.listStore[toggle][0].decode('utf-8'), self.listStore[toggle][6]))
+        print fileList
         self.db.setSync(fileList)
         self.updateTitle()
         return
@@ -278,9 +280,10 @@ class dbView:
             return
 
         print "Sync: %s -> %s (%f Mib)" % (sourceDir, targetDir, self.db.syncSize() / 1024.**2)
+        print "copyList:", (self.db.copyList(sourceDir),)
         for file in self.db.copyList(sourceDir):
-            abspath = os.path.join(sourceDir, file).encode('latin-1')
-            target = os.path.join(targetDir,file).encode('latin-1')
+            abspath = os.path.join(sourceDir, file)
+            target = os.path.join(targetDir,file)
             print "Sync: ", file
             if not os.path.isdir(os.path.dirname(target)):
                 os.makedirs(os.path.dirname(target))

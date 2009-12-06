@@ -100,16 +100,17 @@ class musicDB:
 
     def updateFile(self, sourceDir, abspath):
         '''Update a file in the database.'''
-        if self.echo: print "db.updateFile: ", unicode(os.path.relpath(abspath, sourceDir), 'utf-8')
+        if self.echo: print "db.updateFile: ", os.path.relpath(abspath, sourceDir)
         self.removeFile(sourceDir, abspath)
         self.addFile(sourceDir, abspath)
 
     def addFile(self, sourceDir, abspath):
         '''Add a file and its tag information to the database.'''
         statinfo = os.stat(abspath)
-        f = tagpy.FileRef(abspath)
-        relpath = unicode(os.path.relpath(abspath, sourceDir), 'utf-8')
-        print (relpath,len(relpath))
+        f = tagpy.FileRef(abspath.encode('utf-8')) # Because tagpy apparently can't process unicode
+        #relpath  unicode(os.path.relpath(abspath, sourceDir), 'utf-8')
+        relpath = os.path.relpath(abspath, sourceDir)
+        print "addFile:", (relpath, len(relpath))
         # One for each field...
         self.cursor.execute('SELECT id FROM artist WHERE name = ?', (f.tag().artist,))
         temp = self.cursor.fetchall()
@@ -234,38 +235,38 @@ class musicDB:
     def copyList(self, sourceDir):
         '''Returns a list of files to be transfered at next sync.'''
         copyList = []
-        #for root, dirs, files in os.walk(sourceDir):
+        print "copyList()->syncList():", (self.syncList(),)
         for relpath in self.syncList():
-            #for name in files:
-                if not '.mp3' in relpath[-4:].lower():
-                    continue
-                if self.isNewer(sourceDir, relpath):
-                    copyList.append(relpath)
+            print (relpath,)
+            if not '.mp3' in relpath[-4:].lower():
+                continue
+            if self.isNewer(sourceDir, relpath):
+                print "NEWER"
+                copyList.append(relpath)
+            else: print
         return copyList
 
     def trackList(self):
         '''Return a list of relative paths of all files in db.'''
         self.cursor.execute('SELECT relpath FROM file')
         tupleList = self.cursor.fetchall()
-        trackList = []
-        for t in tupleList:
-            trackList.append(t[0])
+        trackList = [x[0] for x in tupleList]
         return trackList
 
     def syncList(self):
         '''Return a list of relative paths of all files marked for sync.'''
         self.cursor.execute('SELECT relpath FROM file WHERE sync = 1')
         tupleList = self.cursor.fetchall()
-        syncList = []
-        for t in tupleList:
-            syncList.append(t[0])
+        syncList = [x[0] for x in tupleList]
+        #if self.echo: print syncList
         return syncList
 
     def setSync(self, relpathList):
         '''Sets the sync value of each of a tuple of a tuple of files in the db.
         Each inner tuple contains the file's relpath and desired sync value.'''
         for relpath, sync in relpathList:
-            relpath = unicode(relpath, 'utf-8')
+            #relpath = unicode(relpath, 'utf-8')
+            sync = bool(sync)
             self.cursor.execute("UPDATE file SET sync = ? WHERE relpath = ?", (sync, relpath))
             if self.echo:
                 self.cursor.execute("SELECT sync FROM file where relpath = ?", (relpath,))
