@@ -311,19 +311,18 @@ class dbView:
         if d.response == gtk.RESPONSE_OK or d.response == gtk.RESPONSE_APPLY:
             dbFile = d.get_Path('DB File')
             if dbFile:
-                'editPrefs: got dbFile'
                 self.dbFile = dbFile
                 self.view(dbFile)
             source = d.get_Path('Source')
             if os.path.isdir(source):
                 self.db.sourceDir(source)
                 if d.response == gtk.RESPONSE_APPLY:
-                        self.opTime = self.db.importDir(source)
+                        self.opTime = self.db.importDir(source, CONFIG_DIR)
                         self.view(self.dbFile)
             target = d.get_Path('Target')
             if target != '':
                 self.db.targetDir(target)
-                self.updateTitle()
+        self.updateTitle()
         return d.response
 
     def openDB(self, dbFile):
@@ -405,7 +404,7 @@ class dbPrefsdialog(gtk.Window):
     def get_Path(self, name):
         path = self.fileEntryGroups[name].get_text()
         path = os.path.expanduser(path)
-        if not os.path.isabs(path): path = CONFIG_DIR + path
+        if path and not os.path.isabs(path): path = CONFIG_DIR + path
         return path
 
 

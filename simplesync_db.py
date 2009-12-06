@@ -282,19 +282,47 @@ class musicDB:
         return
 
     def dumpFlatFile(self, outfile):
-        import codecs
         out = codecs.open(outfile, "w", "utf-8")
         self.cursor.execute("SELECT relpath, sync FROM file")
         for relpath, sync in self.cursor.fetchall():
             #print relpath, sync
             print >> out, sync, relpath
+        out.close()
+
+    def loadFlatFile(self, infile):
+        inf = codecs.open(infile, 'rb', 'utf-8')
+        tracks = self.trackList()
+        syncUpdates = []
+        for line in inf:
+            line = line.strip().split(' ', 1) # (bool, filename)
+            if line[1] in tracks:
+                syncUpdates.append((line[1], int(line[0])))
+            else:
+                if self.echo: print line[1], "not found!"
+        inf.close()
+        self.setSync(syncUpdates)
+        list = set((x[0] for x in syncUpdates)) - set(tracks)
+        import bz2
+        if bool(list):
+            out = bz2.BZ2File(infile + "-MISSING.bz2", "w")
+            for x in list:
+                print >> out, x
+            out.close()
+        list = set(tracks) - set((x[0] for x in syncUpdates))
+        if bool(list):
+            out = bz2.BZ2File(infile + "-NEW.bz2", "w")
+            for x in list:
+                print >> out, x
+            out.close()
+        return syncUpdates
 
 
 def main():
     db = musicDB(":memory:")
-    sourceDir = "/media/disk/Music/S"
+    sourceDir = "/media/disk/Music/A/Abd Al Malik"
     db.rebuild()
     db.importDir(sourceDir)
     #db.dumpFlatFile("/tmp/dbdump")
+    #db.loadFlatFile("/home/john/.simplesync/ipodDump")
 
 if __name__ == "__main__": main()
