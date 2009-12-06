@@ -19,9 +19,6 @@
 #       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #       MA 02110-1301, USA.
 
-# Currently trying to figure out why import and unknownList don't 
-# use the same encodings, even with identical code...
-
 
 from pysqlite2 import dbapi2 as sqlite
 import os, tagpy, time, bz2
@@ -146,8 +143,23 @@ class musicDB:
         for relpath, size in results:
             total += size
         return total
+    
+    def fileList(self, sourceDir): 
+        '''Return a list of all mp3 files below sourceDir.'''
+        list = []
+        for root, dirs, files in os.walk(sourceDir.decode('utf-8')): # Now a unicode object
+        #root = root.encode('latin-1').decode('utf-8')
+            if self.echo: print (root,)
+            for name in (x for x in files):
+                if not '.mp3' in name[-4:]:
+                    continue
+                #print (name,)
+                abspath = os.path.join(root, name)
+                #print "fileList:", (abspath,)
+                list.append(abspath)
+        return list
 
-    def importDir(self, sourceDir):
+    def importDir(self, sourceDir, CONFIG_DIR = None):
         '''Recursively import sourceDir into db.'''
         target = self.targetDir()
         file = ''
@@ -156,19 +168,11 @@ class musicDB:
             self.dumpFlatFile(file)
         self.rebuild()
         self.targetDir(target)
-        print "new:", self.targetDir()
+        print "Target:", self.targetDir()
         self.sourceDir(sourceDir)
         s = time.time()
-        for root, dirs, files in os.walk(sourceDir):
-            print root
-            for name in files:
-                if not '.mp3' in name[-4:]:
-                    continue
-                temp = os.path.join(root, name) # Some c++ error without this temp
-                abspath = temp.decode('utf-8')
-                print (abspath, len(abspath))
-                abspath = temp
-                self.addFile(sourceDir, abspath)
+        for abspath in self.fileList(sourceDir):
+            self.addFile(sourceDir, abspath)
         self.connection.commit()
         if CONFIG_DIR is not None:
             self.loadFlatFile(file)
@@ -182,12 +186,10 @@ class musicDB:
         # Get list of all relpaths
         trackList = self.trackList()
         unknownList = []
-        for root, dirs, files in os.walk(sourceDir):
-            for name in files:
-                abspath = os.path.join(root, name)
-                relpath = os.path.relpath(abspath, sourceDir)
-                if relpath not in allList:
-                    unknownList.append(relpath)
+        for abspath in self.fileList(sourceDir):
+            relpath = os.path.relpath(abspath, sourceDir)
+            if relpath not in trackList:
+                unknownList.append(relpath)
         return unknownList
 
     def targetDir(self, dir = None):
