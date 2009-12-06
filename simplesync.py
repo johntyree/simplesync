@@ -237,7 +237,8 @@ class dbView:
 
     def deleteSelectedButton_callback(self, button):
         '''Remove selected rows from the DB.'''
-        for row in self.selectedRows():
+        # We have to do the rows in reverse to avoid altering rank number
+        for row in self.selectedRows().__reversed__():
             file = self.filterModel[row][0]
             print "Remove:", file
             self.db.removeFile(self.db.sourceDir(), os.path.join(self.db.sourceDir(), file))
