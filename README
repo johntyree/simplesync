@@ -1,4 +1,4 @@
 simplesync - a database-oriented file sync for slow IO
 
-I started this project because syncing music to me CF-card based ipod takes
+I started this project because syncing music to my CF-card based ipod takes
 literally hours using regular rsync. simplesync is based on sqlite.
