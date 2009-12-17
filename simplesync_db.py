@@ -21,7 +21,10 @@
 
 
 from pysqlite2 import dbapi2 as sqlite
-import os, tagpy, time, bz2
+import os, tagpy, time, bz2, pickle
+
+#Acceptible filetypes for tagpy
+filetypes = ('mp3', 'ogg')
 
 class musicDB:
     '''A database of file information and tag attributes.'''
