@@ -293,13 +293,36 @@ class dbView:
             print "Sync: ", file
             if not os.path.isdir(os.path.dirname(target)):
                 os.makedirs(os.path.dirname(target))
-            shutil.copy2(abspath, target)
+            try:
+                shutil.copy2(abspath, target)
+            except IOError, e:
+                self.errorDialog(e.strerror + ':' + e.filename)
+                errorList.append(e.strerror + ':' + e.filename)
+                continue
+            except Exception, e:
+                errorList.append(e)
+                continue
             self.db.updateFile(sourceDir, abspath)
         self.db.connection.commit()
         self.db.mtime(time.time())
-        print "Sync: complete!"
-        unknown = self.db.unknownList(sourceDir),
-        print "unknownList:", unknown
+        print "Sync: complete! (%u files)" % len(copyList)
+        unknown = self.db.unknownList(sourceDir)
+        if unknown:
+            print "Missing from DB:", unknown
+            filename = os.path.join(CONFIG_DIR, self.dbFile + '.NOT_IN_DB.bz2')
+            self.db.dumpFlatFile(filename, unknown, False) # False = Plain text
+        unknown = self.db.extraList(targetDir)
+        if unknown:
+            print "Extra in target:", unknown
+            if (self.dialog("".join([x+'\n' for x in unknown])).run() == gtk.RESPONSE_YES):
+                self.deleteFiles(targetDir, unknown)
+            filename = os.path.join(CONFIG_DIR, self.dbFile + '.EXTRA_IN_TARGET.bz2')
+            self.db.dumpFlatFile(filename, unknown, False) # False = Plain text
+        if errorList:
+            print "Errors as follows:"
+            for err in errorList:
+                print err
+        return
 
     def playTrackFromColumn(self):
         r = self.selectedRows()
@@ -345,6 +368,21 @@ class dbView:
                                    msg)
             md.run()
             md.destroy()
+
+    class dialog(gtk.Window):
+        '''Pop-up a Yes or No dialog displaying msg.'''
+        def __init__(self, msg):
+            self.md = gtk.MessageDialog(self,
+                                   gtk.DIALOG_DESTROY_WITH_PARENT,
+                                   gtk.MESSAGE_QUESTION,
+                                   gtk.BUTTONS_YES_NO,
+                                   msg)
+            self.md.xrun = self.md.run
+
+        def run(self):
+            r = self.md.xrun()
+            self.md.destroy()
+            return r
 
 '''    class threadDBImport(threading.Thread):
         def __init__(self, parent, sourceDir):

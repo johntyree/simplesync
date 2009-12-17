@@ -181,6 +181,21 @@ class musicDB:
         print "%.1fs" % (f - s)
         return (f - s)
 
+    def cleanDB(self, sourceDir, CONFIG_DIR):
+        '''Remove files from db which do not exist in sourceDir.'''
+        trackSet = set(self.trackList())
+        fileSet = set([os.path.relpath(x, sourceDir) for x in self.fileList(sourceDir)])
+        for track in trackSet - fileSet:
+            self.removeFile(sourceDir, os.path.join(sourceDir, track))
+        self.connection.commit()
+        print "cleanDB:"
+        print trackSet
+        print fileSet
+        print trackSet - fileSet
+        print "END cleanDB"
+        self.dumpFlatFile(os.path.join(CONFIG_DIR, self.dbfile + '.REMOVED_FROM_DB.' + str(time.time()) + '.bz2'), trackSet - fileSet, False)
+        return
+
     def unknownList(self, sourceDir):
         '''Return a list of files in sourceDir but not in db.'''
         # Get list of all relpaths
@@ -212,16 +227,20 @@ class musicDB:
            if dir != None:
                return dir[0]
 
-    def isNewer(self, sourceDir, relpath):
-        '''Return True if file at sourceDir/relpath is newer or is not in database.'''
+    def isNewer(self, sourceDir, targetDir, relpath):
+        '''Return True if file at sourceDir/relpath is newer than or not present in the database.targetDir/relpath does not exist.'''
+        if not os.path.exists(os.path.join(targetDir, relpath)):
+            return True
         self.cursor.execute('SELECT mtime FROM file WHERE relpath = ?', (relpath,))
         try:
             dbTime = self.cursor.fetchall()[0][0]
             fileTime = os.stat(os.path.join(sourceDir, relpath)).st_mtime
             return fileTime > dbTime
         except IndexError:
+            print "File not in DB (True): %s" % relpath
             return True
         except OSError:
+            print "File in DB but not sourceDir (False): %s" % relpath
             return False
 
     def filterList(self, str):
