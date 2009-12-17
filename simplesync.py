@@ -27,7 +27,7 @@ class dbView:
     '''Main window for viewing simplesync musicDB'''
 
     def __init__(self, dbFile = None):
-        self.echo = True
+        self.echo = False
         self.appPath = os.path.abspath(os.path.dirname(os.path.realpath(sys.argv[0])))
         self.dbFile = dbFile
 
@@ -357,6 +357,24 @@ class dbView:
     def openDB(self, dbFile):
         '''Returns a musicDB object connected to dbFile.'''
         return simplesync_db.musicDB(dbFile)
+    
+    def deleteFiles(self, targetDir, filelist):
+        '''Deletes filelist and empty dirs in filelist from disk.'''
+        print "deleteFiles"
+        for relpath in filelist:
+            abspath = os.path.join(targetDir, relpath)
+            dir = os.path.dirname(abspath)
+            print "Removing:", abspath
+            os.unlink(abspath)
+            abspath = os.path.split(abspath)[0]
+            while abspath != targetDir:
+                print abspath
+                try:
+                    os.rmdir(abspath)
+                except OSError, e:
+                    print e.args
+                    break
+                abspath = os.path.split(abspath)[0]
 
     class errorDialog(gtk.Window):
         '''Pop-up an error displaying msg.'''
