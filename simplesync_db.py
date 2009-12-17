@@ -61,6 +61,8 @@ class musicDB:
     def rebuild(self):
         '''Construct a new empty database.'''
         if self.echo: print "Rebuilding...",
+        target = self.targetDir()
+        source = self.sourceDir()
 
         # Drop all tables ...
         self.cursor.execute('''SELECT 'DROP TABLE ' || name || ';'
@@ -88,6 +90,8 @@ class musicDB:
         self.cursor.execute('CREATE TABLE metadata (name VARCHAR(255) PRIMARY KEY, value VARCHAR(255))')
         self.cursor.execute('INSERT INTO metadata VALUES (?, ?)', ("db_version", 0.0))
         self.cursor.execute('INSERT INTO metadata VALUES (?, ?)', ("simplesync_version", 0.0))
+        self.targetDir(target)
+        self.sourceDir(source)
         self.connection.commit()
         if self.echo: print 'complete!'
 
@@ -103,17 +107,31 @@ class musicDB:
 
     def updateFile(self, sourceDir, abspath):
         '''Update a file in the database.'''
-        if self.echo: print "db.updateFile: ", os.path.relpath(abspath, sourceDir)
+        relpath = os.path.relpath(abspath, sourceDir)
+        if self.echo: print "db.updateFile: ", relpath
+        self.cursor.execute('SELECT sync FROM file where relpath = ?', (relpath,))
+        sync = 0
+        try:
+            sync = self.cursor.fetchall()[0][0]
+        except IndexError:
+            pass
         self.removeFile(sourceDir, abspath)
         self.addFile(sourceDir, abspath)
+        if (sync): self.setSync([(relpath, sync)])
 
     def addFile(self, sourceDir, abspath):
         '''Add a file and its tag information to the database.'''
         statinfo = os.stat(abspath)
-        f = tagpy.FileRef(abspath.encode('utf-8')) # Because tagpy apparently can't process unicode
+        #if not '.mp3' in abspath[-4:] or '.ogg' in abspath[-4:]
+        print abspath
+        try:
+            f = tagpy.FileRef(abspath.encode('utf-8')) # Because tagpy apparently can't process unicode
+        except ValueError, e:
+            print "ValueError:", e.message, abspath
+            return False
         #relpath  unicode(os.path.relpath(abspath, sourceDir), 'utf-8')
         relpath = os.path.relpath(abspath, sourceDir)
-        print "addFile:", (relpath, len(relpath))
+        if self.echo: print "addFile:", (relpath, len(relpath))
         # One for each field...
         self.cursor.execute('SELECT id FROM artist WHERE name = ?', (f.tag().artist,))
         temp = self.cursor.fetchall()
