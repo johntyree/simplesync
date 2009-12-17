@@ -155,6 +155,18 @@ class musicDB:
             temp = self.cursor.fetchall()
         album_id = temp[0][0]
         self.cursor.execute('INSERT INTO file VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', (relpath, statinfo.st_mtime, statinfo.st_size, f.tag().title, artist_id, album_id, genre_id, f.tag().year, True))
+        return True
+
+    def copySize(self):
+        '''Return the size, in bytes, of all files marked for copy at the next sync.'''
+        self.cursor.execute('SELECT relpath, size FROM file WHERE sync = ?', (True,))
+        results = self.cursor.fetchall()
+        total = 0
+        copyList = self.copyList()
+        for relpath, size in results:
+            if relpath in copyList:
+                total += size
+        return total
 
     def syncSize(self):
         '''Return the size, in bytes, of all files marked for sync.'''
