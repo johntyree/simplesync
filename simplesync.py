@@ -162,7 +162,7 @@ class dbView:
         self.filterModel = self.listStore.filter_new()
         self.filterModel.set_visible_func(self.filterFunc, self.searchBar)
         self.tree.set_model(self.filterModel)
-        #self.tree.columns_autosize()
+        self.tree.columns_autosize()
         self.updateTitle()
 
     def updateTitle(self):
@@ -215,7 +215,7 @@ class dbView:
             self.listStore[toggle][6] = not self.listStore[toggle][6]
             # listStore returns a utf-8 string, we must decode it
             fileList.append((self.listStore[toggle][0].decode('utf-8'), self.listStore[toggle][6]))
-        print fileList
+        if self.echo: print fileList
         self.db.setSync(fileList)
         self.updateTitle()
         return
@@ -276,13 +276,18 @@ class dbView:
                 self.errorDialog('Specify a target')
 
         # Cancel if not enough free space
-        if freeSpace(targetDir) <= self.db.syncSize():
-            self.errorDialog("Not enough free space on device.")
+        fs = freeSpace(targetDir)
+        cs = self.db.copySize()
+        if fs <= cs:
+            print fs, cs
+            self.errorDialog("Not enough free space on device. %s <= %s" % (fs, cs))
             return
 
-        print "Sync: %s -> %s (%f Mib)" % (sourceDir, targetDir, self.db.syncSize() / 1024.**2)
-        print "copyList:", (self.db.copyList(sourceDir),)
-        for file in self.db.copyList(sourceDir):
+        print "Sync: %s -> %s (%f Mib)" % (sourceDir, targetDir, self.db.copySize() / 1024.**2)
+        if self.echo: print "sync_cb->copyList():", self.db.copyList(sourceDir, targetDir)
+        copyList = self.db.copyList(sourceDir, targetDir)
+        errorList = []
+        for file in copyList:
             abspath = os.path.join(sourceDir, file)
             target = os.path.join(targetDir,file)
             print "Sync: ", file
