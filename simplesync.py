@@ -324,14 +324,14 @@ class dbView:
         unknown = self.db.unknownList(sourceDir)
         if unknown:
             print "Missing from DB:", unknown
-            filename = os.path.join(CONFIG_DIR, self.dbFile + '.NOT_IN_DB.bz2')
+            filename = os.path.join(CONFIG_DIR, self.dbFile + '.' + ''.join([str(x) for x in time.localtime()[:-3]]) + '-NOT_IN_DB.bz2')
             self.db.dumpFlatFile(filename, unknown, False) # False = Plain text
         unknown = self.db.extraList(targetDir)
         if unknown:
             print "Extra in target:", unknown
             if (self.dialog("".join([x+'\n' for x in unknown])).run() == gtk.RESPONSE_YES):
                 self.deleteFiles(targetDir, unknown)
-            filename = os.path.join(CONFIG_DIR, self.dbFile + '.EXTRA_IN_TARGET.bz2')
+            filename = os.path.join(CONFIG_DIR, self.dbFile + '.' + ''.join([str(x) for x in time.localtime()[:-3]]) + '-EXTRA_IN_TARGET.bz2')
             self.db.dumpFlatFile(filename, unknown, False) # False = Plain text
         if errorList:
             print "Errors as follows:"

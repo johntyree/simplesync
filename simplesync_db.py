@@ -259,10 +259,10 @@ class musicDB:
         file = ''
         s = time.time()
         if CONFIG_DIR is not None:
-            filename = os.path.join(CONFIG_DIR, self.dbfile + '.IMPORT.' + str(int(time.time())))
+            filename = os.path.join(CONFIG_DIR, self.dbfile + '.IMPORT.' + ''.join([str(x) for x in time.localtime()[:-3]]))
             self.cursor.execute("SELECT relpath, sync FROM file")
             data = self.cursor.fetchall()
-            self.dumpFlatFile(filename, data)
+            #self.dumpFlatFile(filename, data)
         #self.rebuild()
         for abspath in self.fileList(sourceDir):
             if self.isNewer(sourceDir, sourceDir, os.path.relpath(abspath, sourceDir)):
@@ -270,8 +270,8 @@ class musicDB:
         self.connection.commit()
         if CONFIG_DIR is not None:
             self.cleanDB(sourceDir, CONFIG_DIR)
-            self.loadSyncFlatFile(filename)
-            os.unlink(filename)
+            #self.loadSyncFlatFile(filename)
+            #os.unlink(filename)
         f = time.time()
         print "%.1fs" % (f - s)
         return (f - s)
@@ -283,12 +283,9 @@ class musicDB:
         for track in trackSet - fileSet:
             self.removeFile(sourceDir, os.path.join(sourceDir, track))
         self.connection.commit()
-        print "cleanDB:"
-        print trackSet
-        print fileSet
-        print trackSet - fileSet
-        print "END cleanDB"
-        self.dumpFlatFile(os.path.join(CONFIG_DIR, self.dbfile + '.REMOVED_FROM_DB.' + str(time.time()) + '.bz2'), trackSet - fileSet, False)
+        print "cleanDB:\n%s\nEND cleanDB" % (trackSet - fileSet)
+        if trackSet - fileSet != set([]):
+            self.dumpFlatFile(os.path.join(CONFIG_DIR, self.dbfile + '.' + ''.join([str(x) for x in time.localtime()[:-3]]) + '-REMOVED_FROM_DB.bz2'), trackSet - fileSet, False)
         return
 
     def unknownList(self, sourceDir):
@@ -454,10 +451,10 @@ class musicDB:
         self.setSync(syncUpdates)
         filelist = sorted(list(set((x[0] for x in syncUpdates)) - set(tracks)))
         if bool(filelist):
-            self.dumpFlatFile(infile + "-EXTRA_IN_SYNCLIST.bz2", filelist, False)
+            self.dumpFlatFile(infile + '.' + ''.join([str(x) for x in time.localtime()[:-3]]) + "-EXTRA_IN_SYNCLIST.bz2", filelist, False)
         filelist = sorted(list(set(tracks) - set((x[0] for x in syncUpdates))))
         if bool(filelist):
-            self.dumpFlatFile(infile + "-NEW_IN_DB.bz2", filelist, False)
+            self.dumpFlatFile(infile + '.' + ''.join([str(x) for x in time.localtime()[:-3]]) + "-NEW_IN_DB.bz2", filelist, False)
         return syncUpdates
 
 
