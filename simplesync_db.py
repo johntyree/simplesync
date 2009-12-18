@@ -24,7 +24,7 @@ from pysqlite2 import dbapi2 as sqlite
 import os, tagpy, time, bz2, pickle
 
 #Acceptible filetypes for tagpy
-filetypes = ('mp3', 'ogg')
+fileTypes = ('.mp3', '.ogg')
 
 class musicDB:
     '''A database of file information and tag attributes.'''
@@ -61,8 +61,13 @@ class musicDB:
     def rebuild(self):
         '''Construct a new empty database.'''
         if self.echo: print "Rebuilding...",
-        target = self.targetDir()
-        source = self.sourceDir()
+        target = ''
+        source = ''
+        try:
+            target = self.targetDir()
+            source = self.sourceDir()
+        except sqlite.OperationalError:
+            pass
 
         # Drop all tables ...
         self.cursor.execute('''SELECT 'DROP TABLE ' || name || ';'
@@ -109,7 +114,7 @@ class musicDB:
         '''Update a file in the database.'''
         relpath = os.path.relpath(abspath, sourceDir)
         if self.echo: print "db.updateFile: ", relpath
-        self.cursor.execute('SELECT sync FROM file where relpath = ?', (relpath,))
+        self.cursor.execute('SELECT sync FROM file WHERE relpath = ?', (relpath,))
         sync = 0
         try:
             sync = self.cursor.fetchall()[0][0]
@@ -157,10 +162,57 @@ class musicDB:
         self.cursor.execute('INSERT INTO file VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', (relpath, statinfo.st_mtime, statinfo.st_size, f.tag().title, artist_id, album_id, genre_id, f.tag().year, True))
         return True
 
-    def copySize(self):
-        '''Return the size, in bytes, of all files marked for copy at the next sync.'''
-        self.cursor.execute('SELECT relpath, size FROM file WHERE sync = ?', (True,))
-        results = self.cursor.fetchall()
+    def fileListSize2(self, relpathList = None):
+        '''Return the size, in bytes, of all relpaths in relpathList or in db if relpathList is None.'''
+        allDict = {}
+        for x in self.allList():
+            allDict[x['relpath']] = x['size']
+        if relpathList is None:
+            relpathList = allDict.keys()
+        total = 0
+        for relpath in relpathList:
+            total += allDict[relpath]
+        #print "fileListSizeList: ", results
+        return total
+
+    def queryBuilder(self, query, elements):
+        MAX = 999
+        query += ' OR '
+        bigQuery = ''
+        length = len(elements)
+        while length > 0:
+            if length > MAX:
+                #print "%u > %u" % (length, MAX)
+                bigQuery = (query * MAX)[:-4] 
+            else:
+                #print "%u <= %u" % (length, MAX)
+                bigQuery = (query * length)[:-4] 
+            yield bigQuery, elements[:MAX]
+            elements = elements[MAX:]
+            length -= MAX
+
+    def fileListSize(self, relpathList = None):
+        '''Return the size, in bytes, of all relpaths in relpathList or db if relpathList is None.'''
+        # This doesn't check for paths that aren't in db!
+        if relpathList is None:
+            relpathList = self.trackList()
+        total = 0
+        for query in self.queryBuilder('relpath = ?', relpathList):
+            self.cursor.execute('SELECT size FROM file WHERE %s' % query[0], query[1])
+            try:
+                total += sum(x[0] for x in self.cursor.fetchall())
+            except IndexError, e:
+                print e.args
+        #print "fileListSizeList: ", results
+        return total
+
+    def DEP_copySize(self, relpathList):
+        '''Return the size, in bytes, of all visible files marked for copy at the next sync.'''
+        results = []
+        for relpath in relpathList:
+            self.cursor.execute('SELECT relpath, size FROM file WHERE relpath = ? AND sync = ?', (relpath, True))
+            results += self.cursor.fetchall()
+        print "copyList: ", results
         total = 0
         copyList = self.copyList()
         for relpath, size in results:
@@ -168,11 +220,15 @@ class musicDB:
                 total += size
         return total
 
-    def syncSize(self):
-        '''Return the size, in bytes, of all files marked for sync.'''
-        self.cursor.execute('SELECT relpath, size FROM file WHERE sync = ?', (True,))
-        results = self.cursor.fetchall()
+    def DEP_syncSize(self, relpathList):
+        '''Return the size, in bytes, of all visible files marked for sync.'''
+        results = []
+        for relpath in relpathList:
+            self.cursor.execute('SELECT relpath, size FROM file WHERE relpath = ? AND sync = ?', (relpath, True))
+            results += self.cursor.fetchall()
+        print "syncSizeList: ", results
         total = 0
+        print results
         for relpath, size in results:
             total += size
         return total
@@ -186,7 +242,7 @@ class musicDB:
             #root = root.encode('latin-1').decode('utf-8')
                 if self.echo: print (root,)
                 for name in (x for x in files):
-                    if not name.rsplit('.', 1)[1] in filetypes:
+                    if not name.rsplit('.', 1)[1] in fileTypes:
                         continue
                 #print (name,)
                     abspath = os.path.join(root, name)
@@ -315,15 +371,14 @@ class musicDB:
             allList.append({"relpath" : relpath, "mtime" : mtime, "size" : size, "title" : title, "artist" : artist, "album" : album, "genre" : genre, "year" : year, "sync" : sync})
         return allList
 
-    def copyList(self, sourceDir = None, targetDir = None):
+    def copyList(self, sourceDir = None, targetDir = None, relpathList = None):
         '''Returns a list of files to be transfered at next sync.'''
         if not sourceDir: sourceDir = self.sourceDir()
         if not targetDir: targetDir = self.targetDir()
         copyList = []
-        for relpath in self.syncList():
-            #print (relpath,),
-            if not '.mp3' in relpath[-4:].lower():
-                continue
+        for relpath in self.syncList(relpathList):
+            if not os.path.splitext(relpath)[1].lower() in fileTypes:
+                print "Unknown file extension:", (os.path.splitext(relpath)[1].lower(), relpath,)
             if self.isNewer(sourceDir, targetDir, relpath):
                 #print "NEWER"
                 copyList.append(relpath)
@@ -337,7 +392,7 @@ class musicDB:
         trackList = [x[0] for x in tupleList]
         return trackList
 
-    def syncList(self):
+    def syncList(self, relpathList = None):
         '''Return a list of relative paths of all files marked for sync.'''
         self.cursor.execute('SELECT relpath FROM file WHERE sync = 1')
         tupleList = self.cursor.fetchall()

@@ -174,7 +174,8 @@ class dbView:
 
     def updateTitle(self):
         '''Update window title.'''
-        syncSize = self.db.syncSize() / 1024.**2
+        visibleRelpaths = [x[0].decode('utf-8') for x in self.filterModel]
+        syncSize = self.db.fileListSize(visibleRelpaths) / 1024.**2
         targetSize = totalSpace(self.db.targetDir()) / 1024.**2
         unit = 'Mib'
         title = None
@@ -273,6 +274,7 @@ class dbView:
 
     def syncAllButton_callback(self, button):
         '''Copy marked files from self.targetDir to self.db.sourceDir'''
+        visibleRelpaths = [x[0].decode('utf-8') for x in self.filterModel]
         sourceDir = self.db.sourceDir()
         targetDir = self.db.targetDir()
         # If we're missing some info, get it!
@@ -290,13 +292,13 @@ class dbView:
 
         # Cancel if not enough free space
         fs = freeSpace(targetDir)
-        cs = self.db.copySize()
+        cs = self.db.fileListSize(visibleRelpaths)
         if fs <= cs:
             print fs, cs
             self.errorDialog("Not enough free space on device. %s <= %s" % (fs, cs))
             return
 
-        print "Sync: %s -> %s (%f Mib)" % (sourceDir, targetDir, self.db.copySize() / 1024.**2)
+        print "Sync: %s -> %s (%f Mib)" % (sourceDir, targetDir, cs / 1024.**2)
         if self.echo: print "sync_cb->copyList():", self.db.copyList(sourceDir, targetDir)
         copyList = self.db.copyList(sourceDir, targetDir)
         errorList = []
