@@ -180,36 +180,42 @@ class musicDB:
     def fileList(self, sourceDir):
         '''Return a list of all mp3 files below sourceDir.'''
         list = []
-        for root, dirs, files in os.walk(sourceDir.decode('utf-8')): # Now a unicode object
-        #root = root.encode('latin-1').decode('utf-8')
-            if self.echo: print (root,)
-            for name in (x for x in files):
-                if not '.mp3' in name[-4:]:
-                    continue
+        print "fileList->sourceDir:", sourceDir
+        try:
+            for root, dirs, files in os.walk(sourceDir.decode('utf-8')): # Now a unicode object
+            #root = root.encode('latin-1').decode('utf-8')
+                if self.echo: print (root,)
+                for name in (x for x in files):
+                    if not name.rsplit('.', 1)[1] in filetypes:
+                        continue
                 #print (name,)
-                abspath = os.path.join(root, name)
+                    abspath = os.path.join(root, name)
                 #print "fileList:", (abspath,)
-                list.append(abspath)
+                    list.append(abspath)
+        except UnicodeDecodeError, e:
+            print e.args
+            raise UnicodeDecodeError
         return list
 
     def importDir(self, sourceDir, CONFIG_DIR = None):
-        '''Recursively import sourceDir into db.'''
-        target = self.targetDir()
+        '''Recursively import sourceDir into db. Sync values will persist if
+        CONFIG_DIR is specified,'''
         file = ''
-        if CONFIG_DIR is not None:
-            file = os.path.join(CONFIG_DIR, self.dbfile + '.' + str(int(time.time())))
-            self.dumpFlatFile(file)
-        self.rebuild()
-        self.targetDir(target)
-        print "Target:", self.targetDir()
-        self.sourceDir(sourceDir)
         s = time.time()
+        if CONFIG_DIR is not None:
+            filename = os.path.join(CONFIG_DIR, self.dbfile + '.IMPORT.' + str(int(time.time())))
+            self.cursor.execute("SELECT relpath, sync FROM file")
+            data = self.cursor.fetchall()
+            self.dumpFlatFile(filename, data)
+        #self.rebuild()
         for abspath in self.fileList(sourceDir):
-            self.addFile(sourceDir, abspath)
+            if self.isNewer(sourceDir, sourceDir, os.path.relpath(abspath, sourceDir)):
+                self.updateFile(sourceDir, abspath)
         self.connection.commit()
         if CONFIG_DIR is not None:
-            self.loadFlatFile(file)
-            os.unlink(file)
+            self.cleanDB(sourceDir, CONFIG_DIR)
+            self.loadSyncFlatFile(filename)
+            os.unlink(filename)
         f = time.time()
         print "%.1fs" % (f - s)
         return (f - s)
@@ -239,6 +245,19 @@ class musicDB:
             if relpath not in trackList:
                 unknownList.append(relpath)
         return unknownList
+
+    def extraList(self, targetDir):
+        '''Return a list of files in targetDir but not in db OR not marked for sync.'''
+        extra = self.unknownList(targetDir)
+        self.cursor.execute('SELECT relpath FROM file WHERE sync = ?', (False,))
+        try:
+            noSyncs = (x[0] for x in self.cursor.fetchall())
+        except IndexError:
+            noSyncs = []
+        for relpath in noSyncs:
+            if os.path.exists(os.path.join(targetDir, relpath)):
+                extra.append(relpath)
+        return extra
 
     def targetDir(self, dir = None):
        if dir:
@@ -296,18 +315,19 @@ class musicDB:
             allList.append({"relpath" : relpath, "mtime" : mtime, "size" : size, "title" : title, "artist" : artist, "album" : album, "genre" : genre, "year" : year, "sync" : sync})
         return allList
 
-    def copyList(self, sourceDir):
+    def copyList(self, sourceDir = None, targetDir = None):
         '''Returns a list of files to be transfered at next sync.'''
+        if not sourceDir: sourceDir = self.sourceDir()
+        if not targetDir: targetDir = self.targetDir()
         copyList = []
-        print "copyList()->syncList():", (self.syncList(),)
         for relpath in self.syncList():
-            print (relpath,)
+            #print (relpath,),
             if not '.mp3' in relpath[-4:].lower():
                 continue
-            if self.isNewer(sourceDir, relpath):
-                print "NEWER"
+            if self.isNewer(sourceDir, targetDir, relpath):
+                #print "NEWER"
                 copyList.append(relpath)
-            else: print
+            #else: print
         return copyList
 
     def trackList(self):
@@ -345,38 +365,44 @@ class musicDB:
         self.connection.commit()
         return
 
-    def dumpFlatFile(self, outfile):
-        out = bz2.BZFile(outfile, "w")
-        self.cursor.execute("SELECT relpath, sync FROM file")
-        for relpath, sync in self.cursor.fetchall():
-            #print relpath, sync
-            print >> out, sync, relpath
+    def dumpFlatFile(self, outfile, data, pickleIt = True):
+        '''Write bz2 compressed, optionally pickled data to outfile.
+        If pickleIt is False, data must be an iterable representing file lines.'''
+        out = bz2.BZ2File(outfile, "w")
+        if pickleIt:
+            pickle.dump(data, out, 2)
+        else:
+            for line in data:
+                print >> out, line
         out.close()
+        return
 
-    def loadFlatFile(self, infile):
+    def readFlatFile(self, infile):
+        '''Return bz2 decompressed, unpickled data from infile.'''
         inf = bz2.BZ2File(infile, 'rb')
+        data = pickle.load(inf)
+        inf.close()
+        return data
+
+    def loadSyncFlatFile(self, infile):
+        '''Read relpaths from database dump at infile.
+        Write files which are missing from DB to -EXTRA_IN_SYNCLIST.bz2.
+        Write files which are in DB but not in file to -NEW_IN_DB.bz2.'''
         tracks = self.trackList()
         syncUpdates = []
-        for line in inf:
-            line = line.strip().split(' ', 1) # (bool, filename)
-            if line[1] in tracks:
-                syncUpdates.append((line[1], int(line[0])))
+        data = self.readFlatFile(infile)
+        for relpath, sync in data:
+            if relpath in tracks:
+                syncUpdates.append((relpath, sync))
             else:
-                if self.echo: print line[1], "not found!"
-        inf.close()
+                if self.echo: print relpath, "not found!"
         self.setSync(syncUpdates)
-        list = set((x[0] for x in syncUpdates)) - set(tracks)
-        if bool(list):
-            out = bz2.BZ2File(infile + "-MISSING.bz2", "w")
-            for x in list:
-                print >> out, x
-            out.close()
-        list = set(tracks) - set((x[0] for x in syncUpdates))
-        if bool(list):
-            out = bz2.BZ2File(infile + "-NEW.bz2", "w")
-            for x in list:
-                print >> out, x
-            out.close()
+        filelist = sorted(list(set((x[0] for x in syncUpdates)) - set(tracks)))
+        if bool(filelist):
+            self.dumpFlatFile(infile + "-EXTRA_IN_SYNCLIST.bz2", filelist, False)
+        filelist = sorted(list(set(tracks) - set((x[0] for x in syncUpdates))))
+        if bool(filelist):
+            self.dumpFlatFile(infile + "-NEW_IN_DB.bz2", filelist, False)
         return syncUpdates
 
 
@@ -386,6 +412,6 @@ def main():
     db.rebuild()
     db.importDir(sourceDir)
     #db.dumpFlatFile("/tmp/dbdump")
-    #db.loadFlatFile("/home/john/.simplesync/ipodDump")
+    #db.loadSyncFlatFile("/home/john/.simplesync/ipodDump")
 
 if __name__ == "__main__": main()
