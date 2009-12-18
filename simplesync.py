@@ -27,7 +27,7 @@ class dbView:
     '''Main window for viewing simplesync musicDB'''
 
     def __init__(self, dbFile = None):
-        self.echo = False
+        self.echo = True
         self.appPath = os.path.abspath(os.path.dirname(os.path.realpath(sys.argv[0])))
         self.dbFile = dbFile
 
@@ -105,9 +105,15 @@ class dbView:
         self.deleteSelectedButton.connect('clicked', self.deleteSelectedButton_callback)
         self.tooltips.set_tip(self.deleteSelectedButton, "Delete all selected files.")
 
+        # updateDB button
+        self.updateDBButton = gtk.Button('_Update DB')
+        self.updateDBButton.set_image(gtk.image_new_from_stock(gtk.STOCK_REFRESH, gtk.ICON_SIZE_BUTTON))
+        self.updateDBButton.connect('clicked', self.updateDBButton_callback)
+        self.tooltips.set_tip(self.updateDBButton, "Update the database from disk.")
+
         # Sync button
         self.syncAllButton = gtk.Button('_Sync')
-        self.syncAllButton.set_image(gtk.image_new_from_stock(gtk.STOCK_REFRESH, gtk.ICON_SIZE_BUTTON))
+        self.syncAllButton.set_image(gtk.image_new_from_stock(gtk.STOCK_SAVE, gtk.ICON_SIZE_BUTTON))
         self.syncAllButton.connect('clicked', self.syncAllButton_callback)
         self.tooltips.set_tip(self.syncAllButton, "Sync active files to device.")
 
@@ -118,6 +124,7 @@ class dbView:
         self.hbox1.pack_start(self.searchBar, True, True, 1)
         self.hbox1.pack_start(self.deleteSelectedButton, False, False, 1)
         self.hbox1.pack_start(self.toggleSelectedButton, False, False, 1)
+        self.hbox1.pack_start(self.updateDBButton, False, False, 1)
         self.hbox1.pack_start(self.syncAllButton, False, False, 1)
         self.vbox1.pack_start(self.hbox1, False, False, 1)
 
@@ -234,6 +241,12 @@ class dbView:
         for row in self.tree.get_selection().get_selected_rows()[1:][0]:
             selectedRows.append(row[0])
         return selectedRows
+
+    def updateDBButton_callback(self, button):
+        source = self.db.sourceDir()
+        print "Updating from %s" % source
+        self.opTime = self.db.importDir(source, CONFIG_DIR)
+        self.view(self.dbFile)
 
     def deleteSelectedButton_callback(self, button):
         '''Remove selected rows from the DB.'''
