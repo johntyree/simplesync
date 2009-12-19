@@ -244,7 +244,7 @@ class musicDB:
             #root = root.encode('latin-1').decode('utf-8')
                 if self.echo: print (root,)
                 for name in (x for x in files):
-                    if not name.rsplit('.', 1)[1] in fileTypes:
+                    if not os.path.splitext(name)[1] in fileTypes:
                         continue
                 #print (name,)
                     abspath = os.path.join(root, name)
