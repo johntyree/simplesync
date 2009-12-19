@@ -19,9 +19,34 @@
 #       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #       MA 02110-1301, USA.
 
-import gtk, simplesync_db, time, os, shutil, sys, statvfs, subprocess
+import gtk, simplesync_db, time, os, shutil, sys, statvfs, subprocess, threading
 
 CONFIG_DIR = os.path.expanduser("~/.simplesync/")
+
+def backgroundThread(f):
+    print "backgroundThread start"
+    def newfunc(*args, **kwargs):
+        print "newfunc start"
+        class bgThread(threading.Thread):
+            def f__init__(self, f):
+                print "bgThread Init Start"
+                #self.f = f
+                threading.Thread.__init__(self)
+                print "bgThread Init End"
+                return
+            def f__call__(self, *args, **kwargs):
+                print "__call__ start"
+                resp = self.start()
+                print "__call__ end"
+                return resp
+            def frun(self):
+                print "Thead start"
+                result = self.f(*args, **kwargs)
+                print "Thead end"
+        print "newfunc end"
+        return bgThread(target = f, args = args, kwargs = kwargs).start()
+    print "backgroundThread end"
+    return newfunc
 
 class dbView:
     '''Main window for viewing simplesync musicDB'''
@@ -162,7 +187,7 @@ class dbView:
             return
         db = self.openDB(dbFile)
         self.db = db
-        self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ]' % (dbFile, self.db.sourceDir(), self.db.targetDir()))
+        self.dbwindow.set_title('SimpleSync - %s: [ %s -> %s ]' % (dbFile, db.sourceDir(), db.targetDir()))
         self.listStore = gtk.ListStore(str, str, str, str, str, int, bool)
         for track in db.allList():
             self.listStore.append([track['relpath'], track['title'], track['artist'], track['album'], track['genre'], track['year'], track['sync']])
@@ -174,9 +199,10 @@ class dbView:
 
     def updateTitle(self):
         '''Update window title.'''
+        db = self.openDB(self.dbFile)
         visibleRelpaths = [x[0].decode('utf-8') for x in self.filterModel]
-        syncSize = self.db.fileListSize(visibleRelpaths) / 1024.**2
-        targetSize = totalSpace(self.db.targetDir()) / 1024.**2
+        syncSize = db.fileListSize(visibleRelpaths) / 1024.**2
+        targetSize = totalSpace(db.targetDir()) / 1024.**2
         unit = 'Mib'
         title = None
         if syncSize > 1024 or targetSize > 1024:
@@ -188,9 +214,9 @@ class dbView:
         except ZeroDivisionError:
             percent = 0
         if len(self.filterModel):
-            title = ('SimpleSync - %s: [ %s -> %s ] (%i/%i) (%.2f / %.2f %s %2i%%)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), len(self.listStore), syncSize, targetSize, unit, percent))
+            title = ('SimpleSync - %s: [ %s -> %s ] (%i/%i) (%.2f / %.2f %s %2i%%)' % (self.dbFile, db.sourceDir(), db.targetDir(), len(self.filterModel), len(self.listStore), syncSize, targetSize, unit, percent))
         else:
-            title = ('SimpleSync - %s: [ %s -> %s ] (%i) (%.2f / %.2f %s %i%%)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), syncSize, targetSize, unit, percent))
+            title = ('SimpleSync - %s: [ %s -> %s ] (%i) (%.2f / %.2f %s %i%%)' % (self.dbFile, db.sourceDir(), db.targetDir(), len(self.filterModel), syncSize, targetSize, unit, percent))
         try:
             title = ('(%.1fs) %s' % (self.opTime, title))
         except AttributeError:
@@ -372,7 +398,7 @@ class dbView:
     def openDB(self, dbFile):
         '''Returns a musicDB object connected to dbFile.'''
         return simplesync_db.musicDB(dbFile)
-    
+
     def deleteFiles(self, targetDir, filelist):
         '''Deletes filelist and empty dirs in filelist from disk.'''
         print "deleteFiles"
@@ -417,21 +443,6 @@ class dbView:
             self.md.destroy()
             return r
 
-'''    class threadDBImport(threading.Thread):
-        def __init__(self, parent, sourceDir):
-            print 'Thread: init'
-            self.parent = parent
-            self.sourceDir = sourceDir
-            threading.Thread.__init__(self)
-            print 'Thread: end init'
-        def run(self):
-            print 'Thread: start'
-            #self.parent.db.connection.interrupt()
-            db = simplesync_db.musicDB('/tmp/ss3.db')
-            db.importDir(self.sourceDir)
-            #self.parent.view(self.parent.dbFile)
-            print 'Thread: end'
-'''
 
 class dbPrefsdialog(gtk.Window):
     '''Dialog box for setting file paths.'''
