@@ -204,10 +204,9 @@ class dbView:
 
     def updateTitle(self):
         '''Update window title.'''
-        db = self.openDB(self.dbFile)
-        visibleRelpaths = [x[0].decode('utf-8') for x in self.filterModel]
-        syncSize = db.fileListSize(visibleRelpaths) / 1024.**2
-        targetSize = totalSpace(db.targetDir()) / 1024.**2
+        visibleRelpaths = list(set([x[0].decode('utf-8') for x in self.filterModel]).intersection(self.db.syncList()))
+        syncSize = self.db.fileListSize(visibleRelpaths) / 1024.**2
+        targetSize = totalSpace(self.db.targetDir()) / 1024.**2
         unit = 'Mib'
         title = None
         if syncSize > 1024 or targetSize > 1024:
@@ -219,9 +218,9 @@ class dbView:
         except ZeroDivisionError:
             percent = 0
         if len(self.filterModel):
-            title = ('SimpleSync - %s: [ %s -> %s ] (%i/%i) (%.2f / %.2f %s %2i%%)' % (self.dbFile, db.sourceDir(), db.targetDir(), len(self.filterModel), len(self.listStore), syncSize, targetSize, unit, percent))
+            title = ('SimpleSync - %s: [ %s -> %s ] (%i/%i) (%.2f / %.2f %s %2i%%)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), len(self.listStore), syncSize, targetSize, unit, percent))
         else:
-            title = ('SimpleSync - %s: [ %s -> %s ] (%i) (%.2f / %.2f %s %i%%)' % (self.dbFile, db.sourceDir(), db.targetDir(), len(self.filterModel), syncSize, targetSize, unit, percent))
+            title = ('SimpleSync - %s: [ %s -> %s ] (%i) (%.2f / %.2f %s %i%%)' % (self.dbFile, self.db.sourceDir(), self.db.targetDir(), len(self.filterModel), syncSize, targetSize, unit, percent))
         try:
             title = ('(%.1fs) %s' % (self.opTime, title))
         except AttributeError:
@@ -448,7 +447,6 @@ class dbView:
             r = self.md.xrun()
             self.md.destroy()
             return r
-
 
 class dbPrefsdialog(gtk.Window):
     '''Dialog box for setting file paths.'''

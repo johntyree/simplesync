@@ -26,13 +26,16 @@ import os, tagpy, time, bz2, pickle
 #Acceptible filetypes for tagpy
 fileTypes = ('.mp3', '.ogg')
 
+def currentTime():
+    return ''.join(["%02u" % x for x in time.localtime()[:-3]])
+
 class musicDB:
     '''A database of file information and tag attributes.'''
 
     def __init__ (self, dbfile):
         '''Initialize a musicDB object connected to <dbfile>.'''
         self.echo = True
-        self.dbfile = dbfile
+        self.dbFile = dbfile
         isNew = False
         if self.echo: print "Connecting to %s" % dbfile
         if not os.path.isfile(dbfile):
@@ -105,8 +108,8 @@ class musicDB:
         relpath = os.path.relpath(abspath, sourceDir)
         if self.echo: print "db.removeFile: ", relpath
         try:
-            relpath = unicode(relpath, 'utf-8')
-        except TypeError:
+            relpath = relpath.decode('utf-8')
+        except UnicodeEncodeError:
             pass
         self.cursor.execute('DELETE FROM file WHERE relpath = ?', (relpath,))
 
@@ -128,7 +131,6 @@ class musicDB:
         '''Add a file and its tag information to the database.'''
         statinfo = os.stat(abspath)
         #if not '.mp3' in abspath[-4:] or '.ogg' in abspath[-4:]
-        print abspath
         try:
             f = tagpy.FileRef(abspath.encode('utf-8')) # Because tagpy apparently can't process unicode
         except ValueError, e:
@@ -136,7 +138,7 @@ class musicDB:
             return False
         #relpath  unicode(os.path.relpath(abspath, sourceDir), 'utf-8')
         relpath = os.path.relpath(abspath, sourceDir)
-        if self.echo: print "addFile:", (relpath, len(relpath))
+        if self.echo: print "db.addFile:", (relpath,)
         # One for each field...
         self.cursor.execute('SELECT id FROM artist WHERE name = ?', (f.tag().artist,))
         temp = self.cursor.fetchall()
@@ -427,7 +429,7 @@ class musicDB:
             pickle.dump(data, out, 2)
         else:
             for line in data:
-                print >> out, line
+                print >> out, line.encode('utf-8')
         out.close()
         return
 
@@ -461,7 +463,7 @@ def main():
     db = musicDB(":memory:")
     sourceDir = "/media/disk/Music/A/Abd Al Malik"
     db.rebuild()
-    db.importDir(sourceDir)
+    db.importDir(sourceDir, '/home/john/.simplesync/')
     #db.dumpFlatFile("/tmp/dbdump")
     #db.loadSyncFlatFile("/home/john/.simplesync/ipodDump")
 
