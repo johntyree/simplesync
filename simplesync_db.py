@@ -266,9 +266,14 @@ class musicDB:
         #    data = self.cursor.fetchall()
             #self.dumpFlatFile(filename, data)
         #self.rebuild()
+        NEW_IN_DB = []
         for abspath in self.fileList(sourceDir):
-            if self.isNewer(sourceDir, sourceDir, os.path.relpath(abspath, sourceDir)):
+            relpath = os.path.relpath(abspath, sourceDir)
+            isNewer = self.isNewer(sourceDir, sourceDir, relpath)
+            if isNewer:
                 self.updateFile(sourceDir, abspath)
+                if isNewer == -1:
+                    NEW_IN_DB += relpath
         self.connection.commit()
         if NEW_IN_DB:
             self.dumpFlatFile(self.dbFile + '.' + currentTime() + "-NEW_IN_DB.bz2", NEW_IN_DB, False)
