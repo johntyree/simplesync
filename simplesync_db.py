@@ -342,7 +342,9 @@ class musicDB:
                return dir[0]
 
     def isNewer(self, sourceDir, targetDir, relpath):
-        '''Return True if file at sourceDir/relpath is newer than or not present in the database.targetDir/relpath does not exist.'''
+        '''Return True if file at sourceDir/relpath is newer than in the
+        database or if targetDir/relpath does not exist. Return -1 (true) if
+        file is not in database.'''
         if not os.path.exists(os.path.join(targetDir, relpath)):
             return True
         self.cursor.execute('SELECT mtime FROM file WHERE relpath = ?', (relpath,))
@@ -352,7 +354,7 @@ class musicDB:
             return fileTime > dbTime
         except IndexError:
             print "File not in DB (True): %s" % relpath
-            return True
+            return -1
         except OSError:
             print "File in DB but not sourceDir (False): %s" % relpath
             return False
