@@ -119,7 +119,8 @@ class dbView:
 
         # Search bar
         self.searchBar = gtk.Entry()
-        self.searchBar.connect('changed', self.searchBar_callback)
+        self.searchBar.connect('activate', self.searchBar_callback)
+        self.searchBar.set_activates_default(True)
         self.tooltips.set_tip(self.searchBar, "Enter query.")
 
         # Toggle Selected button
@@ -230,6 +231,7 @@ class dbView:
 
     def searchBar_callback(self, searchBar):
         '''Limit results to those containing 'searchBar'.'''
+        # To avoid constant refiltering
         self.filterModel.refilter()
         self.updateTitle()
 
