@@ -298,7 +298,6 @@ class dbView:
         copyList, updateList = self.db.copyList(self.visibleSyncFiles())
         #copyList = list(set(self.visibleSyncFiles()).intersection(set(copyList)))
         extraList = self.db.extraList(targetDir)
-        print "extraList:", zip(tmplst, extraList)
         unknownList = self.db.unknownList(sourceDir)
         copySize = self.db.fileListSize(copyList)
         updateSize = self.db.fileListSize(updateList)
