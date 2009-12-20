@@ -373,9 +373,15 @@ class musicDB:
         return trackList
 
     def syncList(self, relpathList = None):
-        '''Return a list of relative paths of all files marked for sync.'''
-        self.cursor.execute('SELECT relpath FROM file WHERE sync = 1')
-        tupleList = self.cursor.fetchall()
+        '''Return a list of relative paths of all files in relpathList (entire db if None) marked for sync.'''
+        tupleList = []
+        if relpathList is None:
+            self.cursor.execute('SELECT relpath FROM file WHERE sync = 1')
+            tupleList = self.cursor.fetchall()
+        else:
+            for query in self.queryBuilder('relpath = ?', relpathList):
+                self.cursor.execute('SELECT relpath FROM file WHERE sync = 1 AND (%s)' % query[0], query[1])
+                tupleList += self.cursor.fetchall()
         syncList = [x[0] for x in tupleList]
         #if self.echo: print syncList
         return syncList
