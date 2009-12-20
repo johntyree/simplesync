@@ -34,7 +34,7 @@ class musicDB:
 
     def __init__ (self, dbfile):
         '''Initialize a musicDB object connected to <dbfile>.'''
-        self.echo = True
+        self.echo = False
         self.dbFile = dbfile
         isNew = False
         if self.echo: print "Connecting to %s" % dbfile
@@ -164,19 +164,6 @@ class musicDB:
         self.cursor.execute('INSERT INTO file VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', (relpath, statinfo.st_mtime, statinfo.st_size, f.tag().title, artist_id, album_id, genre_id, f.tag().year, True))
         return True
 
-    def fileListSize2(self, relpathList = None):
-        '''Return the size, in bytes, of all relpaths in relpathList or in db if relpathList is None.'''
-        allDict = {}
-        for x in self.allList():
-            allDict[x['relpath']] = x['size']
-        if relpathList is None:
-            relpathList = allDict.keys()
-        total = 0
-        for relpath in relpathList:
-            total += allDict[relpath]
-        #print "fileListSizeList: ", results
-        return total
-
     def queryBuilder(self, query, elements):
         MAX = 999
         query += ' OR '
@@ -206,33 +193,6 @@ class musicDB:
             except IndexError, e:
                 print e.args
         #print "fileListSizeList: ", results
-        return total
-
-    def DEP_copySize(self, relpathList):
-        '''Return the size, in bytes, of all visible files marked for copy at the next sync.'''
-        results = []
-        for relpath in relpathList:
-            self.cursor.execute('SELECT relpath, size FROM file WHERE relpath = ? AND sync = ?', (relpath, True))
-            results += self.cursor.fetchall()
-        print "copyList: ", results
-        total = 0
-        copyList = self.copyList()
-        for relpath, size in results:
-            if relpath in copyList:
-                total += size
-        return total
-
-    def DEP_syncSize(self, relpathList):
-        '''Return the size, in bytes, of all visible files marked for sync.'''
-        results = []
-        for relpath in relpathList:
-            self.cursor.execute('SELECT relpath, size FROM file WHERE relpath = ? AND sync = ?', (relpath, True))
-            results += self.cursor.fetchall()
-        print "syncSizeList: ", results
-        total = 0
-        print results
-        for relpath, size in results:
-            total += size
         return total
 
     def fileList(self, sourceDir):

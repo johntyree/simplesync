@@ -23,32 +23,6 @@ import gtk, gobject, time, os, shutil, sys, statvfs, subprocess, threading
 import simplesync_db
 
 CONFIG_DIR = os.path.expanduser("~/.simplesync/")
-
-def backgroundThread(f):
-    print "backgroundThread start"
-    def newfunc(*args, **kwargs):
-        print "newfunc start"
-        class bgThread(threading.Thread):
-            def f__init__(self, f):
-                print "bgThread Init Start"
-                #self.f = f
-                threading.Thread.__init__(self)
-                print "bgThread Init End"
-                return
-            def f__call__(self, *args, **kwargs):
-                print "__call__ start"
-                resp = self.start()
-                print "__call__ end"
-                return resp
-            def frun(self):
-                print "Thead start"
-                result = self.f(*args, **kwargs)
-                print "Thead end"
-        print "newfunc end"
-        return bgThread(target = f, args = args, kwargs = kwargs).start()
-    print "backgroundThread end"
-    return newfunc
-
 def currentTime():
     return ''.join(["%02u" % x for x in time.localtime()[:-3]])
 
@@ -56,7 +30,7 @@ class dbView:
     '''Main window for viewing simplesync musicDB'''
 
     def __init__(self, dbFile = None):
-        self.echo = True
+        self.echo = False
         self.appPath = os.path.abspath(os.path.dirname(os.path.realpath(sys.argv[0])))
         self.dbFile = dbFile
 
@@ -521,6 +495,31 @@ class dbPrefsdialog(gtk.Window):
                 return
         finally:
             dialog.destroy()
+
+def backgroundThread(f):
+    print "backgroundThread start"
+    def newfunc(*args, **kwargs):
+        print "newfunc start"
+        class bgThread(threading.Thread):
+            def f__init__(self, f):
+                print "bgThread Init Start"
+                #self.f = f
+                threading.Thread.__init__(self)
+                print "bgThread Init End"
+                return
+            def f__call__(self, *args, **kwargs):
+                print "__call__ start"
+                resp = self.start()
+                print "__call__ end"
+                return resp
+            def frun(self):
+                print "Thead start"
+                result = self.f(*args, **kwargs)
+                print "Thead end"
+        print "newfunc end"
+        return bgThread(target = f, args = args, kwargs = kwargs).start()
+    print "backgroundThread end"
+    return newfunc
 
 def freeSpace(path):
     try:
