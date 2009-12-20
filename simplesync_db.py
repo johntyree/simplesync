@@ -273,7 +273,7 @@ class musicDB:
             if isNewer:
                 self.updateFile(sourceDir, abspath)
                 if isNewer == -1:
-                    NEW_IN_DB += relpath
+                    NEW_IN_DB.append(relpath)
         self.connection.commit()
         if NEW_IN_DB:
             self.dumpFlatFile(self.dbFile + '.' + currentTime() + "-NEW_IN_DB.bz2", NEW_IN_DB, False)
