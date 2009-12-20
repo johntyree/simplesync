@@ -246,16 +246,16 @@ class musicDB:
         return (f - s)
 
     def cleanDB(self, sourceDir, CONFIG_DIR):
-        '''Remove files from db which do not exist in sourceDir.'''
+        '''Return files removed from db which do not exist in sourceDir.'''
         trackSet = set(self.trackList())
         fileSet = set([os.path.relpath(x, sourceDir) for x in self.fileList(sourceDir)])
         for track in trackSet - fileSet:
             self.removeFile(sourceDir, os.path.join(sourceDir, track))
         self.connection.commit()
-        print "cleanDB:\n%s\nEND cleanDB" % (trackSet - fileSet)
+        if self.echo: print "cleanDB:\n%s\nEND cleanDB" % (trackSet - fileSet)
         if trackSet - fileSet != set([]):
             self.dumpFlatFile(os.path.join(CONFIG_DIR, self.dbFile + '.' + currentTime() + '-REMOVED_FROM_DB.bz2'), trackSet - fileSet, False)
-        return
+        return trackSet - fileSet
 
     def unknownList(self, sourceDir):
         '''Return a list of files in sourceDir but not in db.'''
