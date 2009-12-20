@@ -298,9 +298,6 @@ class dbView:
         copyList, updateList = self.db.copyList(self.visibleSyncFiles())
         #copyList = list(set(self.visibleSyncFiles()).intersection(set(copyList)))
         extraList = self.db.extraList(targetDir)
-        tmplst = []
-        for x in extraList:
-            tmplst.append(os.stat(os.path.join('/media/disk/Music/', x))[8])
         print "extraList:", zip(tmplst, extraList)
         unknownList = self.db.unknownList(sourceDir)
         copySize = self.db.fileListSize(copyList)
