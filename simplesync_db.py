@@ -285,7 +285,6 @@ class musicDB:
             noSyncs = []
         for relpath in noSyncs:
             if os.path.exists(os.path.join(targetDir, relpath)):
-                print '* ', relpath
                 extra.append(relpath)
         return extra
 

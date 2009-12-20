@@ -302,7 +302,7 @@ class dbView:
         copySize = self.db.fileListSize(copyList)
         updateSize = self.db.fileListSize(updateList)
         extraSize = self.db.fileListSize(extraList)
-        print "cs: %f\nus: %f\nes: %f\nts: %f" % (copySize, updateSize, extraSize, targetSpace)
+        if self.echo: print "copySize: %f\nupdateSize: %f\nextraSize: %f\ntargetSize: %f" % (copySize, updateSize, extraSize, targetSpace)
         if targetSpace <= (copySize - extraSize):
             print "Not enough free space on device. %s >= %s" % (copySize, targetSpace)
             self.errorDialog("Not enough free space on device. %s >= %s" % (copySize, targetSpace))
