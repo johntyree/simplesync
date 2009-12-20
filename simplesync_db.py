@@ -165,7 +165,7 @@ class musicDB:
         return True
 
     def queryBuilder(self, query, elements):
-        MAX = 999
+        MAX = 980
         query += ' OR '
         bigQuery = ''
         length = len(elements)
@@ -227,6 +227,7 @@ class musicDB:
             #self.dumpFlatFile(filename, data)
         #self.rebuild()
         NEW_IN_DB = []
+        REMOVED_FROM_DB = []
         for abspath in self.fileList(sourceDir):
             relpath = os.path.relpath(abspath, sourceDir)
             isNewer = self.isNewer(sourceDir, sourceDir, relpath)
@@ -234,16 +235,20 @@ class musicDB:
                 self.updateFile(sourceDir, abspath)
                 if isNewer == -1:
                     NEW_IN_DB.append(relpath)
+                    print "Add:",
+                else:
+                    print "Update:"
+                print relpath
         self.connection.commit()
         if NEW_IN_DB:
             self.dumpFlatFile(self.dbFile + '.' + currentTime() + "-NEW_IN_DB.bz2", NEW_IN_DB, False)
         if CONFIG_DIR is not None:
-            self.cleanDB(sourceDir, CONFIG_DIR)
+            REMOVED_FROM_DB = list(self.cleanDB(sourceDir, CONFIG_DIR))
             #self.loadSyncFlatFile(filename)
             #os.unlink(filename)
         f = time.time()
-        print "%.1fs" % (f - s)
-        return (f - s)
+        if self.echo: print "%.1fs" % (f - s)
+        return ((f - s), NEW_IN_DB, REMOVED_FROM_DB)
 
     def cleanDB(self, sourceDir, CONFIG_DIR):
         '''Return files removed from db which do not exist in sourceDir.'''
@@ -272,12 +277,15 @@ class musicDB:
         '''Return a list of files in targetDir but not in db OR not marked for sync.'''
         extra = self.unknownList(targetDir)
         self.cursor.execute('SELECT relpath FROM file WHERE sync = ?', (False,))
+        records = self.cursor.fetchall()
+        #print records
         try:
-            noSyncs = (x[0] for x in self.cursor.fetchall())
+            noSyncs = (x[0] for x in records)
         except IndexError:
             noSyncs = []
         for relpath in noSyncs:
             if os.path.exists(os.path.join(targetDir, relpath)):
+                print '* ', relpath
                 extra.append(relpath)
         return extra
 
@@ -339,19 +347,23 @@ class musicDB:
             allList.append({"relpath" : relpath, "mtime" : mtime, "size" : size, "title" : title, "artist" : artist, "album" : album, "genre" : genre, "year" : year, "sync" : sync})
         return allList
 
-    def copyList(self, sourceDir = None, targetDir = None, relpathList = None):
-        '''Returns a list of files to be transfered at next sync.'''
+    def copyList(self, relpathList = None, sourceDir = None, targetDir = None):
+        '''Returns a list of files out of relpathList (entire db if None) to be transfered at next sync.'''
         if not sourceDir: sourceDir = self.sourceDir()
         if not targetDir: targetDir = self.targetDir()
         copyList = []
+        updateList = []
         for relpath in self.syncList(relpathList):
             if not os.path.splitext(relpath)[1].lower() in fileTypes:
                 print "Unknown file extension:", (os.path.splitext(relpath)[1].lower(), relpath,)
-            if self.isNewer(sourceDir, targetDir, relpath):
-                #print "NEWER"
+            ret = self.isNewer(sourceDir, targetDir, relpath)
+            if ret == -2:
                 copyList.append(relpath)
+            elif ret:
+                updateList.append(relpath)
+                #print "NEWER"
             #else: print
-        return copyList
+        return copyList, updateList
 
     def trackList(self):
         '''Return a list of relative paths of all files in db.'''

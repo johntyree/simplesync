@@ -250,7 +250,8 @@ class dbView:
     def updateDBButton_callback(self, button):
         source = self.db.sourceDir()
         print "Updating from %s" % source
-        self.opTime = self.db.importDir(source, CONFIG_DIR)
+        self.opTime, new, removed = self.db.importDir(source, CONFIG_DIR)
+        print "Update complete: %.1fs" % self.opTime
         self.view(self.dbFile)
 
     def deleteSelectedButton_callback(self, button):
