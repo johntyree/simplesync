@@ -178,8 +178,7 @@ class dbView:
 
     def updateTitle(self):
         '''Update window title.'''
-        visibleRelpaths = list(set([x[0].decode('utf-8') for x in self.filterModel]).intersection(self.db.syncList()))
-        syncSize = self.db.fileListSize(visibleRelpaths) / 1024.**2
+        syncSize = self.db.fileListSize(self.visibleSyncFiles()) / 1024.**2
         targetSize = totalSpace(self.db.targetDir()) / 1024.**2
         unit = 'Mib'
         title = None
@@ -188,7 +187,7 @@ class dbView:
             targetSize /= 1024.0
             unit = 'Gib'
         try:
-            percent = (syncSize / targetSize) * 100
+            percent = (syncSize / targetSize) * 100.0
         except ZeroDivisionError:
             percent = 0
         if len(self.filterModel):
@@ -279,7 +278,6 @@ class dbView:
 
     def syncAllButton_callback(self, button):
         '''Copy marked files from self.targetDir to self.db.sourceDir'''
-        visibleRelpaths = [x[0].decode('utf-8') for x in self.filterModel]
         sourceDir = self.db.sourceDir()
         targetDir = self.db.targetDir()
         # If we're missing some info, get it!
@@ -294,30 +292,59 @@ class dbView:
             targetDir = self.db.targetDir()
             if not targetDir:
                 self.errorDialog('Specify a target')
-
         # Cancel if not enough free space
-        fs = freeSpace(targetDir)
-        cs = self.db.fileListSize(visibleRelpaths)
-        if fs <= cs:
-            print fs, cs
-            self.errorDialog("Not enough free space on device. %s <= %s" % (fs, cs))
+        targetSpace = freeSpace(targetDir)
+        copyList, updateList = self.db.copyList(self.visibleSyncFiles())
+        #copyList = list(set(self.visibleSyncFiles()).intersection(set(copyList)))
+        extraList = self.db.extraList(targetDir)
+        tmplst = []
+        for x in extraList:
+            tmplst.append(os.stat(os.path.join('/media/disk/Music/', x))[8])
+        print "extraList:", zip(tmplst, extraList)
+        unknownList = self.db.unknownList(sourceDir)
+        copySize = self.db.fileListSize(copyList)
+        updateSize = self.db.fileListSize(updateList)
+        extraSize = self.db.fileListSize(extraList)
+        print "cs: %f\nus: %f\nes: %f\nts: %f" % (copySize, updateSize, extraSize, targetSpace)
+        if targetSpace <= (copySize - extraSize):
+            print "Not enough free space on device. %s >= %s" % (copySize, targetSpace)
+            self.errorDialog("Not enough free space on device. %s >= %s" % (copySize, targetSpace))
             return
-
-        print "Sync: %s -> %s (%f Mib)" % (sourceDir, targetDir, cs / 1024.**2)
-        if self.echo: print "sync_cb->copyList():", self.db.copyList(sourceDir, targetDir)
-        copyList = self.db.copyList(sourceDir, targetDir)
+        print "Sync: %s -> %s (%.2f Mib)" % (sourceDir, targetDir, (copySize + updateSize) / 1024.**2)
+        if self.echo: print "sync_cb->copyList():", copyList, updateList
+        if not copyList and not updateList and not extraList:
+            print "Target up to date"
+            return
+        msg = ''
+        if copyList or updateList:
+            msg = 'Sync %u file%s?' % (len(copyList) + len(updateList), (len(copyList) + len(updateList) > 1) * 's')
+        if extraList:
+            if self.echo: print "Extra in target:", extraList
+            filename = os.path.join(CONFIG_DIR, self.dbFile + '.' + currentTime() + '-EXTRA_IN_TARGET.bz2')
+            self.db.dumpFlatFile(filename, extraList, False) # False = Plain text
+            msg += '\nRemove %u file%s?' % (len(extraList), (len(extraList) > 1) * 's')
+        if self.dialog(msg).run() == gtk.RESPONSE_NO:
+            print "Cancelled"
+            return
         errorList = []
-        for file in copyList:
+        start = time.time()
+        if unknownList:
+            print "Missing from DB:", unknownList
+            filename = os.path.join(CONFIG_DIR, self.dbFile + '.' + currentTime() + '-NOT_IN_DB.bz2')
+            self.db.dumpFlatFile(filename, unknownList, False) # False = Plain text
+        if extraList:
+            self.deleteFiles(targetDir, extraList)
+        for file in copyList + updateList:
             abspath = os.path.join(sourceDir, file)
             target = os.path.join(targetDir,file)
-            print "Sync: ", file
+            print file
             if not os.path.isdir(os.path.dirname(target)):
                 os.makedirs(os.path.dirname(target))
             try:
                 shutil.copy2(abspath, target)
             except IOError, e:
-                self.errorDialog(e.strerror + ':' + e.filename)
-                errorList.append(e.strerror + ':' + e.filename)
+                self.errorDialog(str(e.strerror) + ':' + str(e.filename))
+                errorList.append(str(e.strerror) + ':' + str(e.filename))
                 continue
             except Exception, e:
                 errorList.append(e)
@@ -325,24 +352,19 @@ class dbView:
             self.db.updateFile(sourceDir, abspath)
         self.db.connection.commit()
         self.db.mtime(time.time())
-        print "Sync: complete! (%u files)" % len(copyList)
-        unknown = self.db.unknownList(sourceDir)
-        if unknown:
-            print "Missing from DB:", unknown
-            filename = os.path.join(CONFIG_DIR, self.dbFile + '.' + currentTime() + '-NOT_IN_DB.bz2')
-            self.db.dumpFlatFile(filename, unknown, False) # False = Plain text
-        unknown = self.db.extraList(targetDir)
-        if unknown:
-            print "Extra in target:", unknown
-            if (self.dialog("".join([x+'\n' for x in unknown])).run() == gtk.RESPONSE_YES):
-                self.deleteFiles(targetDir, unknown)
-            filename = os.path.join(CONFIG_DIR, self.dbFile + '.' + currentTime() + '-EXTRA_IN_TARGET.bz2')
-            self.db.dumpFlatFile(filename, unknown, False) # False = Plain text
+        self.opTime = time.time() - start
+        print "Sync: complete! %.2fs (%u files)" % (len(copyList) + len(updateList), self.opTime)
         if errorList:
             print "Errors as follows:"
             for err in errorList:
                 print err
+                self.errorDialog(err)
+        self.updateTitle()
         return
+
+    def visibleSyncFiles(self):
+        return self.db.syncList([x[0].decode('utf-8') for x in self.filterModel])
+        #return list(set([x[0].decode('utf-8') for x in self.filterModel]).intersection(self.db.syncList()))
 
     def playTrackFromColumn(self):
         r = self.selectedRows()
@@ -366,10 +388,15 @@ class dbView:
             if os.path.isdir(source):
                 self.db.sourceDir(source)
                 if d.response == gtk.RESPONSE_APPLY:
-                        self.opTime = self.db.importDir(source, CONFIG_DIR)
+                        self.opTime, new, removed = self.db.importDir(source, CONFIG_DIR)
                         self.view(self.dbFile)
             target = d.get_Path('Target')
             if target != '':
+                if not os.path.isdir(target):
+                    if not os.path.exists(target):
+                        ans = self.dialog('%s does not exist. Create?' % target).run()
+                        if ans == gtk.RESPONSE_YES:
+                            os.makedirs(target)
                 self.db.targetDir(target)
         self.updateTitle()
         return d.response
@@ -380,19 +407,18 @@ class dbView:
 
     def deleteFiles(self, targetDir, filelist):
         '''Deletes filelist and empty dirs in filelist from disk.'''
-        print "deleteFiles"
+        print "Removing Files:"
         for relpath in filelist:
             abspath = os.path.join(targetDir, relpath)
             dir = os.path.dirname(abspath)
-            print "Removing:", abspath
+            print abspath
             os.unlink(abspath)
             abspath = os.path.split(abspath)[0]
             while abspath != targetDir:
-                print abspath
                 try:
                     os.rmdir(abspath)
+                    print abspath
                 except OSError, e:
-                    print e.args
                     break
                 abspath = os.path.split(abspath)[0]
 

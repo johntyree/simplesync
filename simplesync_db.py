@@ -198,7 +198,7 @@ class musicDB:
     def fileList(self, sourceDir):
         '''Return a list of all mp3 files below sourceDir.'''
         list = []
-        print "fileList->sourceDir:", sourceDir
+        if self.echo: print "fileList->sourceDir:", sourceDir
         try:
             for root, dirs, files in os.walk(sourceDir.decode('utf-8')): # Now a unicode object
             #root = root.encode('latin-1').decode('utf-8')
@@ -303,20 +303,20 @@ class musicDB:
 
     def isNewer(self, sourceDir, targetDir, relpath):
         '''Return True if file at sourceDir/relpath is newer than in the
-        database or if targetDir/relpath does not exist. Return -1 (true) if
+        database, Return -2 if targetDir/relpath does not exist. Return -1 (true) if
         file is not in database.'''
         if not os.path.exists(os.path.join(targetDir, relpath)):
-            return True
+            return -2
         self.cursor.execute('SELECT mtime FROM file WHERE relpath = ?', (relpath,))
         try:
             dbTime = self.cursor.fetchall()[0][0]
             fileTime = os.stat(os.path.join(sourceDir, relpath)).st_mtime
             return fileTime > dbTime
         except IndexError:
-            print "File not in DB (True): %s" % relpath
+            if self.echo: print "File not in DB (True): %s" % relpath
             return -1
         except OSError:
-            print "File in DB but not sourceDir (False): %s" % relpath
+            if self.echo: print "File in DB but not sourceDir (False): %s" % relpath
             return False
 
     def filterList(self, str):
