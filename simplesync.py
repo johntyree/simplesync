@@ -395,6 +395,24 @@ class dbView:
                         if ans == gtk.RESPONSE_YES:
                             os.makedirs(target)
                 self.db.targetDir(target)
+            force_update_file = d.get_Path('Force Update')
+            if force_update_file:
+                if os.path.exists(force_update_file):
+                    force_update_file = open(os.path.abspath(force_update_file), 'r');
+                    lines = force_update_file.readlines()
+                    print self.db.targetDir()
+                    errors = []
+                    for line in [x.strip() for x in lines]:
+                        path = os.path.relpath(line, '/-')
+                        path = os.path.join(self.db.sourceDir(), path)
+                        try:
+                            print path
+                            os.utime(path, None)
+                        except OSError, e:
+                            errors.append(e.filename)
+                    if errors:
+                        self.errorDialog('\n'.join(errors))
+
         self.updateTitle()
         return d.response
 
@@ -461,7 +479,7 @@ class dbPrefsdialog(gtk.Window):
         self.fileEntryGroups = {}
         self.fileEntrySizeGroup = gtk.SizeGroup(gtk.SIZE_GROUP_HORIZONTAL)
         # Creating the labels, entry boxes, buttons
-        for i, name in enumerate(('DB File', 'Source', 'Target')):
+        for i, name in enumerate(('DB File', 'Source', 'Target', 'Force Update')):
             self.insertEntryGroup(vbox, name, self.fileEntryGroups, i in (1, 2))
 
         self.dialog.vbox.pack_start(vbox, False, False, 0)
@@ -566,7 +584,7 @@ def totalSpace(path):
 
 def main():
     #print db.allList()
-    window = dbView(CONFIG_DIR + 'test.db')
+    window = dbView(CONFIG_DIR + 'ipod.db')
     #window.db.dumpFlatFile(CONFIG_DIR + "ipodDump")
     #window.db.importDir("/media/disk/Music/0-9")
     #window.view('/tmp/ss2.db')
